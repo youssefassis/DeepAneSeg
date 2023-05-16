@@ -1,0 +1,215 @@
+import numpy as np
+import sklearn.neighbors as skn
+import scipy.ndimage as sndi
+import skimage.morphology as skim
+import skimage.measure as skme
+
+
+def extractPointsThres(vol,vox2met,thresLow, thresHigh):
+    '''
+    return points in vol whose value is between thresLow (strictly)
+    and thresHigh (loosely)
+    return points coordinates (p) and values at these points (v)
+    p is returned as a Nx3 array (or D is len(vol.shape) == D)
+    and v is returned as 1xN-array
+    '''
+    idx=np.nonzero(np.logical_and(vol>thresLow,vol<=thresHigh))
+    v=vol[idx]
+    p=vox2met[:3,:]@np.vstack((idx,np.ones(len(v))))+(0.5*vox2met[:3,:3]@np.ones(3)).reshape((-1,1))
+
+    return p.T,v
+
+def pointsInRadius(q,p,r):
+    '''
+    return the indices of all points from p within distance r from q
+    (p=point set, q=query point)
+    p should be a Nx3 array and q a 3-point or Nx3 array of points
+    (work ok in dimensions D!=3 too)
+    '''
+    if len(q.shape) == 1:
+        Qq=np.array(q)[np.newaxis,:]
+    else:
+        Qq=q
+    tree=skn.KDTree(p)
+    return tree.query_radius(Qq,r)[0]
+
+def selectPoints(vol,vox2met,thresLow,r,thresHigh=None,fPoints=None,
+                 nbPoints=None, extractType='Vessels'):
+    '''
+    return p: where p is a Nx3 array of the coordinates of points above threshold thres,
+              such that any two pair of points are at least at a distance r
+    If fPoints is not None, it should be a Nx3 array of forbidden points (coordinates).
+    In that case, all points within a distance of each point in that list are
+    removed.
+    If nbPoints is provided (a number), then at most nbPoints are returned.
+    The function starts with the brightest allowable point and review points with
+    decreasing value. As a consequence, v should be sorted (decreasing) on output
+
+    Example use:
+    d=ni.load('volume.nii')
+    vol=np.asarray(d.dataobj)
+    vox2met=vol.affine
+    T=np.percentile(vol,95) # threshold to get the 5% brigtest voxels
+    fPoints=IO.readFcsv('markers.fcsv')
+    p=selectPoints(vol,vox2met,T,20,fPoints.values(),100)
+    -> this extracts the 100 brightest points, among the 5% brightest points in the
+       volume stored in 'volume.nii' such that no two points are within a distance
+       20 mm from each other and no point is within 20 mm from points read in file
+       'markers.fcsv' 
+    '''
+    if thresHigh is None:
+        thresHigh=np.max(vol.ravel())
+    p,v=extractPointsThres(vol,vox2met,thresLow,thresHigh)
+
+    # compute volume boundaries in metric space
+    #E=vox2met[:3,:]@np.vstack((np.array([0,0,0,1]),np.array(vol.shape)))
+    #cm=np.min(E,axis=0)
+    #cM=np.max(E,axis=0)
+    # remove points too close to boundaries
+    if (nbPoints is None) or (nbPoints > len(v)):
+        nbPoints = len(v)
+
+    if extractType=='Vessels':
+        order=np.argsort(v)[::-1] # pick points with decreasing voxel values
+    else:
+        order=np.arange(len(v))
+        np.random.shuffle(order) # pick points randomly
+    removed=np.zeros(len(v),dtype=np.bool)
+    tree=skn.KDTree(p)
+
+    if not fPoints is None:
+        if len(fPoints.shape) == 1:
+            fPoints = fPoints[np.newaxis,:]
+        i=tree.query_radius(fPoints,r)[0]
+        removed[i]=True
+
+    ret=np.empty((0,3))
+
+    n=0
+    for idx in order:
+        if not removed[idx]:
+            q=p[idx,:].copy()
+            i=tree.query_radius(q[np.newaxis,:],r)[0]
+            removed[i]=True
+            ret=np.vstack((ret,q[np.newaxis,:]))
+            n=n+1
+            if n == nbPoints:
+                return ret
+    return ret
+
+def getBall(r):
+    '''
+    return a structure element shaped as a ball of radius r.
+    can be used with skimage.morphology operators
+    '''
+    x,y,z=np.ogrid[-r:r+1,-r:r+1,-r:r+1]
+    return ((x*x+y*y+z*z)<=r*r).astype(np.uint8)
+
+def removeSkullMask(vol,percent=60):
+    # compute gradient map and threshold it to its 80th percentile
+    edges=sndi.gaussian_gradient_magnitude(vol,sigma=3)
+    idx=np.nonzero(edges>=np.percentile(edges,percent))
+    # sorts the indices so that we can review lines in the volume
+    # according to their y and z coordinates in the
+    # correct order (y first in increasing order, and then z): 
+    # x coordinates are naturally ordered so that, for a given (y,z) pair, 
+    # the first encountered x value is the column index of the first non-null 
+    # voxel along the (y,z) line, and the last encountered value is the last
+    # non voxel along this line
+    idx=sorted(np.vstack(idx).T,key=lambda x: (x[1], x[2]))
+    # review lines according to (y,z) coordinates
+    # get first and last non-null voxel and then, set all voxels between 
+    # these two extremities to 1 in the mask 
+    g=(i for i in idx)
+    mask=np.zeros(vol.shape)
+    try:
+        n=1
+        j0,j1,j2=next(g)
+        while True:
+            m=j0
+            i0,i1,i2=j0,j1,j2
+            while i1==j1 and i2==j2:
+                M=j0
+                j0,j1,j2=next(g)
+                n+=1
+            mask[m:M,i1,i2]=1
+    except:
+        pass
+
+    # erode this mask to remove the skull
+    selem=getBall(2)
+    for _ in range(15):
+        mask=skim.binary_erosion(mask,selem=selem).astype(np.uint8)
+    # return this mask
+    return mask
+
+
+def removeSkullMask_old(vol):
+    '''Skull stripping'''
+    # compute gradient map and threshold it to its 80th percentile
+    edges=sndi.gaussian_gradient_magnitude(vol,sigma=3)
+    idx=np.nonzero(edges>=np.percentile(edges,80))
+    # sorts the indices so that we can review lines in the volume
+    # according to their y and z coordinates in the
+    # correct order (y first in increasing order, and then z): 
+    # x coordinates are naturally ordered so that, for a given (y,z) pair, 
+    # the first encountered x value is the column index of the first non-null 
+    # voxel along the (y,z) line, and the last encountered value is the last
+    # non voxel along this line
+    idx=sorted(np.vstack((idx[0],idx[1],idx[2])).T,key=lambda x: (x[1], x[2]))
+    # review lines according to (y,z) coordinates
+    # get first and last non-null voxel and then, set all voxels between 
+    # these two extremities to 1 in the mask 
+    g=(i for i in idx)
+    mask=np.zeros(vol.shape)
+    try:
+        n=1
+        j0,j1,j2=next(g)
+        while True:
+            m=j0
+            i0,i1,i2=j0,j1,j2
+            while i1==j1 and i2==j2:
+                M=j0
+                j0,j1,j2=next(g)
+                n+=1
+            mask[m:M,i1,i2]=1
+    except:
+        pass
+
+    # erode this mask to remove the skull
+    selem=getBall(2)
+    for _ in range(15):
+        mask=skim.binary_erosion(mask,selem=selem).astype(np.uint8)
+    # return this mask
+    return mask
+
+def ConnectedComponents2Spheres(vol, vox2met):
+    '''
+    Takes a binary volume and returns a sphere for each connected components
+    '''
+    # label CC in volume
+    labels = skme.label(vol.astype(np.uint8))
+    ncc_pred = np.max(labels.ravel())
+#    print(ncc_pred)
+    spheres = np.empty((0,4))
+    for i in range(ncc_pred):
+        # extract positions of voxels in CC (in voxel coords)
+        vpos=np.vstack(np.where(labels == i+1))
+        # transform in metric coords
+        mpos = (vox2met@np.vstack((vpos, np.ones(vpos.shape[1]))))[:3,:]
+        # compute center of gravity
+        cog = np.mean(mpos,axis=1)
+        # compute the radius
+        m=np.min(mpos,axis=1)
+        M=np.max(mpos,axis=1)
+        r = np.max(M-m)/2
+
+        # alternative: through volume
+#        voxel_size = np.linalg.norm(vox2met[:3,:3],axis=0)
+#        voxel_volume = np.prod(voxel_size)
+#        sphere_volume = vpos.shape[1] * voxel_volume
+#        r = (sphere_volume * 3/(4*np.pi))**(1/3)
+
+        spheres=np.vstack((spheres,np.hstack((cog,r))))
+    return spheres
+
