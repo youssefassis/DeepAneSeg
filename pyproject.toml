@@ -28,3 +28,7 @@ dev = ["pytest", "ruff"]
 
 [tool.setuptools.packages.find]
 include = ["deepaneseg*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
