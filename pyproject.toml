@@ -46,4 +46,4 @@ select = ["E9", "F"]
 [tool.ruff.lint.per-file-ignores]
 # still references TensorFlow from an earlier port and computes metrics it never reports;
 # kept until its fate is decided
-"scripts/evaluate.py" = ["F821", "F841"]
+"scripts/experimental/evaluate.py" = ["F821", "F841"]

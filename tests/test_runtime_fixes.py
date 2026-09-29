@@ -9,7 +9,8 @@ import pytest
 import torch
 
 from deepaneseg.data import io as dio
-from deepaneseg.models.models import Proposition2, ProjectExciteLayer, UNet3D
+from deepaneseg.experimental.models import Proposition2, ProjectExciteLayer
+from deepaneseg.models.models import UNet3D
 from deepaneseg.training.losses import WeightedCrossEntropyLoss
 from deepaneseg.training.metrics import DiceCoefficient, Kappa
 from deepaneseg.utils import get_model, load_model, save_checkpoint

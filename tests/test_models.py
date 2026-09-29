@@ -1,7 +1,8 @@
 import pytest
 import torch
 
-from deepaneseg.models.models import Proposition3, UNet3D
+from deepaneseg.experimental.models import Proposition3
+from deepaneseg.models.models import UNet3D
 
 
 @pytest.fixture
