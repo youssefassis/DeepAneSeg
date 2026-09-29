@@ -1,0 +1,10 @@
+defaults:
+  - data: default
+  - _self_
+
+data_dir: ???
+output: noskull.nii.gz   # registered as 'noskull volume' in each patient's config.json
+
+hydra:
+  run:
+    dir: ${data.work_dir}/logs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S}

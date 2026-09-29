@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
-"""Skull-strip every patient volume and register it as 'noskull volume' in the patient config.json."""
+"""Skull-strip every patient volume; configuration in configs/remove_skull.yaml.
 
-import argparse
+Example: python scripts/remove_skull.py data_dir=/data
+The result is saved next to each volume and registered as 'noskull volume' in the patient's config.json.
+"""
+
 import json
 import os
 
+import hydra
 import nibabel as ni
 import numpy as np
 
 import deepaneseg.data.io as dio
 import deepaneseg.volume.selection as vs
 
-OUTPUT_NAME = "noskull.nii.gz"
 
-
-def remove_skull(patient_dir):
+def remove_skull(patient_dir, output_name):
     config_file = os.path.join(patient_dir, "config.json")
     with open(config_file) as f:
         config = json.load(f)
@@ -24,20 +26,17 @@ def remove_skull(patient_dir):
     vol = vs.remove_skull_mask(vol) * vol
     vol /= np.max(vol)
 
-    ni.Nifti1Image(vol, ni_vol.affine).to_filename(os.path.join(patient_dir, OUTPUT_NAME))
-    config["noskull volume"] = OUTPUT_NAME
+    ni.Nifti1Image(vol, ni_vol.affine).to_filename(os.path.join(patient_dir, output_name))
+    config["noskull volume"] = output_name
     with open(config_file, "w") as f:
         json.dump(config, f, indent=2)
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("data_dir", help="directory containing the patient folders (P????)")
-    args = parser.parse_args()
-
-    for patient_dir in dio.fetch_patient_dirs(args.data_dir):
+@hydra.main(version_base="1.3", config_path="../configs", config_name="remove_skull")
+def main(cfg):
+    for patient_dir in dio.fetch_patient_dirs(cfg.data.data_dir):
         print(f"Removing skull: {patient_dir}")
-        remove_skull(patient_dir)
+        remove_skull(patient_dir, cfg.output)
 
 
 if __name__ == "__main__":

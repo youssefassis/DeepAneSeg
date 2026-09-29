@@ -1,0 +1,5 @@
+# Stepped with the validation loss at the end of each epoch
+_target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+mode: min
+factor: 0.5     # learning rate multiplier
+patience: 10    # epochs without validation loss improvement before reducing the learning rate

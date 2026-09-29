@@ -5,7 +5,6 @@ import pytest
 import torch
 
 from deepaneseg.training.trainer import create_trainer
-from deepaneseg.utils import create_optimizer
 from deepaneseg.volume.selection import points_in_radius, select_points
 
 HALF_MM = np.diag([0.5, 0.5, 0.5, 1.0])
@@ -29,23 +28,24 @@ def test_points_in_radius_accepts_several_queries():
     assert sorted(idx) == [0, 2]
 
 
-def test_create_optimizer_applies_weight_decay():
-    model = torch.nn.Linear(2, 1)
-
-    optimizer = create_optimizer(model, learning_rate=1e-3, weight_decay=1e-4)
-
-    assert optimizer.param_groups[0]["weight_decay"] == 1e-4
-    assert optimizer.param_groups[0]["lr"] == 1e-3
-
-
 @pytest.fixture
 def trainer_config(tmp_path):
-    return {"model_file": str(tmp_path / "missing.pytorch"), "test_dir": str(tmp_path), "n_epochs": 1, "early_stop": 3}
+    return {"train_dir": str(tmp_path), "max_num_epochs": 1, "early_stop": 3}
 
 
 def make_trainer(config):
     model = torch.nn.Linear(2, 1)
-    return create_trainer(config, "cpu", model, torch.optim.Adam(model.parameters()), None, None, None, None, None)
+    return create_trainer(
+        **config,
+        device="cpu",
+        model=model,
+        optimizer=torch.optim.Adam(model.parameters()),
+        lr_scheduler=None,
+        loss_criterion=None,
+        eval_criterion=None,
+        loaders=None,
+        max_iterations=None,
+    )
 
 
 def test_trainer_uses_configured_early_stop(trainer_config):
