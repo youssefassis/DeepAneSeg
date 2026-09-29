@@ -52,13 +52,13 @@ Prepare the dataset in the format described above. All commands are run from the
 **5. Testing:**<br>
    python3 scripts/predict.py path/to/Train_dir
 
-# Environment setting
-The code lives in the `deepaneseg` package. Make it importable by editing the **neurodl.pth** file so it contains the absolute path of this repository, then copy it into your virtual environment (e.g. venv/lib/python3.8/site-packages/neurodl.pth)
-
-### Requirements
-* CUDA 11.0  
-* Python 3.7 
-* Pytorch
+# Installation
+Requires Python 3.10+. Install the `deepaneseg` package and its dependencies from the repository root:
+```
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .            # add ".[dev]" for pytest and ruff
+```
+A CUDA-enabled PyTorch build is recommended for training; see [pytorch.org](https://pytorch.org/get-started/locally/) for the right install command for your GPU.
 
 # Citation
 If you find this repository useful in your research, please consider citing:
