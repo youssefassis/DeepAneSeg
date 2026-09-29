@@ -29,8 +29,12 @@ def create_trainer(
     loaders,
     max_iterations,
 ):
-    """Creates a Trainer writing to train_dir, resuming from train_dir/last_checkpoint.pytorch if it exists."""
+    """
+    Creates a Trainer writing to train_dir, resuming from train_dir/last_checkpoint.pytorch if it exists.
+    The best checkpoint is selected on the validation metric, or on the training metric without validation set.
+    """
     model_path = os.path.join(train_dir, "last_checkpoint.pytorch")
+    has_validation = loaders is not None and loaders.get("valid") is not None
     common = dict(
         model=model,
         optimizer=optimizer,
@@ -44,6 +48,7 @@ def create_trainer(
         max_num_epochs=max_num_epochs,
         max_iterations=max_iterations,
         earlystop=early_stop,
+        monitor="valid" if has_validation else "train",
     )
     if os.path.isfile(model_path):
         logger.info(f"Continue training from a checkpoint: '{model_path}'")
@@ -93,7 +98,7 @@ class Trainer:
         self.eval_score_higher_is_better = eval_score_higher_is_better
         self.num_epoch = num_epoch
         self.monitor = monitor
-        self.nonimproved_epoch = 0  # nonimproved_epoch
+        self.nonimproved_epoch = nonimproved_epoch
         self.earlystop = earlystop
 
         if best_eval_score is not None:
@@ -120,11 +125,14 @@ class Trainer:
         max_num_epochs=0,
         max_iterations=0,
         earlystop=100,
+        monitor="valid",
         **kwargs,
     ):
 
         state = load_checkpoint(model_path, model, optimizer)
         logger.info(f"Checkpoint loaded. Epoch: {state['epoch']}; Best metric score: {state['best_eval_score']}")
+        if lr_scheduler is not None and state.get("scheduler_state_dict") is not None:
+            lr_scheduler.load_state_dict(state["scheduler_state_dict"])
 
         return cls(
             model,
@@ -142,6 +150,8 @@ class Trainer:
             max_num_epochs=max_num_epochs,
             max_iterations=max_iterations,
             earlystop=earlystop,
+            monitor=monitor,
+            nonimproved_epoch=state.get("nonimproved_epoch", 0),
         )
 
     def fit(self, sanity_check=False, deep_supervision=False):
@@ -184,10 +194,12 @@ class Trainer:
 
             # Progress bar
             loop.set_description("Training")
-            loop.set_postfix(loss=loss, dice=metric, lr=self.lr)
+            loop.set_postfix(loss=loss, metric=metric, lr=self.lr)
             if sanity_check is True:
                 break
         self._log_stats("train", loss, metric, self.num_epoch)
+        if self.monitor == "train":  # no validation set: schedule on the training loss
+            self._update_lr(loss)
         self._save_best("train", metric)
 
         if self.should_stop():
@@ -219,20 +231,20 @@ class Trainer:
                 loss, metric = eval_losses.avg, eval_metric.avg
 
                 loop.set_description("Validat.")
-                loop.set_postfix(eval_loss=loss, eval_dice=metric)
+                loop.set_postfix(eval_loss=loss, eval_metric=metric)
                 if sanity_check is True:
                     break
             self._log_stats("val", loss, metric, self.num_epoch)
-            saved = self._save_best("valid", metric)
-            self._update_lr(loss, saved)
+            self._update_lr(loss)  # before saving, so the checkpoint holds the scheduler state of the next epoch
+            self._save_best("valid", metric)
 
             if self.should_stop(train=False):
                 logger.info("Stopping criterion is satisfied. Finishing training.")
                 return True
             return False
 
-    def _update_lr(self, loss, saved):
-        if not self.adjust_lr:
+    def _update_lr(self, loss):
+        if self.scheduler is None or not self.adjust_lr:
             return
         if isinstance(self.scheduler, ReduceLROnPlateau):
             self.scheduler.step(loss)
@@ -302,6 +314,8 @@ class Trainer:
                 "best_eval_score": self.best_eval_score,
                 "eval_score_higher_is_better": self.eval_score_higher_is_better,
                 "optimizer_state_dict": self.optimizer.state_dict(),
+                "scheduler_state_dict": self.scheduler.state_dict() if self.scheduler is not None else None,
+                "nonimproved_epoch": self.nonimproved_epoch,
                 "num_epoch": self.num_epoch,
                 "max_num_epochs": self.max_num_epochs,
             },
@@ -310,7 +324,7 @@ class Trainer:
             logger=logger,
         )
 
-    def _log_stats(self, phase, loss_avg, dice_avg, step):
+    def _log_stats(self, phase, loss_avg, metric_avg, step):
         def _log_lr():
             lr = self.optimizer.param_groups[0]["lr"]
             self.writer.add_scalar("learningRate", lr, self.num_epoch)
@@ -322,7 +336,8 @@ class Trainer:
 
         # Log loss and metric
         self.writer.add_scalars("Loss", {f"{phase}": loss_avg}, step)
-        self.writer.add_scalars("Metrics/Dice", {f"{phase}": dice_avg}, step)
+        metric_name = type(self.eval_criterion).__name__ if self.eval_criterion is not None else "metric"
+        self.writer.add_scalars(f"Metrics/{metric_name}", {f"{phase}": metric_avg}, step)
         self.writer.close()
 
     def _split_training_batch(self, t):

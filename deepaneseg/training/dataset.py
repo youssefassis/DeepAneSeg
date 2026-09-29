@@ -1,3 +1,4 @@
+import math
 import torch, random
 import numpy as np
 
@@ -12,12 +13,7 @@ logger = get_logger("Data Preparation")
 
 
 def get_number_of_steps(n_samples, batch_size):
-    if n_samples <= batch_size:
-        return n_samples
-    elif np.remainder(n_samples, batch_size) == 0:
-        return n_samples // batch_size
-    else:
-        return n_samples // batch_size + 1
+    return math.ceil(n_samples / batch_size)
 
 
 class Dataset(torch.utils.data.Dataset):
