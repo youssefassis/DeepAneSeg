@@ -17,43 +17,39 @@ logger = get_logger("Model Trainer")
 
 
 def create_trainer(
-    config, device, model, optimizer, lr_scheduler, loss_criterion, eval_criterion, loaders, max_iterations
+    train_dir,
+    max_num_epochs,
+    early_stop,
+    device,
+    model,
+    optimizer,
+    lr_scheduler,
+    loss_criterion,
+    eval_criterion,
+    loaders,
+    max_iterations,
 ):
-    assert config is not None, "Could not find trainer configuration"
-    model_path = config["model_file"]
+    """Creates a Trainer writing to train_dir, resuming from train_dir/last_checkpoint.pytorch if it exists."""
+    model_path = os.path.join(train_dir, "last_checkpoint.pytorch")
+    common = dict(
+        model=model,
+        optimizer=optimizer,
+        lr_scheduler=lr_scheduler,
+        loss_criterion=loss_criterion,
+        eval_criterion=eval_criterion,
+        device=device,
+        loaders=loaders,
+        checkpoint_dir=train_dir,
+        model_path=model_path,
+        max_num_epochs=max_num_epochs,
+        max_iterations=max_iterations,
+        earlystop=early_stop,
+    )
     if os.path.isfile(model_path):
-        logger.info(f"Continue training from a checkpoint: '{model_path}/'")
-        return Trainer.from_checkpoint(
-            model=model,
-            optimizer=optimizer,
-            lr_scheduler=lr_scheduler,
-            loss_criterion=loss_criterion,
-            eval_criterion=eval_criterion,
-            device=device,
-            loaders=loaders,
-            checkpoint_dir=config["test_dir"],
-            model_path=model_path,
-            max_num_epochs=config["n_epochs"],
-            max_iterations=max_iterations,
-            earlystop=config.get("early_stop", 100),
-        )
-    else:
-        logger.info("Training the model from scratch")
-        return Trainer(
-            model=model,
-            optimizer=optimizer,
-            lr_scheduler=lr_scheduler,
-            loss_criterion=loss_criterion,
-            eval_criterion=eval_criterion,
-            device=device,
-            loaders=loaders,
-            checkpoint_dir=config["test_dir"],
-            model_path=model_path,
-            max_num_epochs=config["n_epochs"],
-            max_iterations=max_iterations,
-            earlystop=config.get("early_stop", 100),
-            config=config,
-        )
+        logger.info(f"Continue training from a checkpoint: '{model_path}'")
+        return Trainer.from_checkpoint(**common)
+    logger.info("Training the model from scratch")
+    return Trainer(**common)
 
 
 class Trainer:

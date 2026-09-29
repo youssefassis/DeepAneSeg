@@ -1,0 +1,5 @@
+# 3D U-Net of the MICCAI 2021 paper
+_target_: deepaneseg.models.models.UNet3D
+f_maps: 64      # filters of the first level, doubled at each level
+num_levels: 4
+layer_order: cbr  # conv, batchnorm, relu

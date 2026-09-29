@@ -23,6 +23,7 @@ deepaneseg/
   training/   dataset, losses, metrics, trainer
   inference/  patch-wise prediction and ADAM-style evaluation
   experimental/  post-paper models (vessel-coupled U-Nets) and their trainer
+configs/      Hydra configuration (see Configuration)
 scripts/      pipeline steps (see Usage)
   experimental/  analysis scripts from the PhD experiments
 ```
@@ -39,37 +40,44 @@ Data_dir/
   P0002/
   ...
   0Work/             created by the scripts
-    BaseConfig/      ndl_config.json and split_pats.json (train/valid/test split)
-    <training>/      ndl_config.json, checkpoints, logs and predictions of one training
+    split_pats.json  train/valid/test split
+    <name>/          checkpoints, TensorBoard logs, predictions and resolved config (.hydra/) of one training
+    logs/            logs of the preprocessing scripts
 ```
 
+# Configuration
+Settings are [Hydra](https://hydra.cc) configs in `configs/`: one file per script (`train.yaml`, `predict.yaml`,
+`preprocess.yaml`, `remove_skull.yaml`, `extract_points.yaml`) composed from groups (`data`, `model`, `optimizer`,
+`scheduler`, `augmentation`). Any value can be overridden on the command line:
+```
+python3 scripts/train.py data_dir=Data_dir name=my_training batch_size=8 optimizer.lr=3e-4 model.f_maps=32
+python3 scripts/train.py --cfg job --resolve data_dir=Data_dir name=my_training   # print the config
+```
+To add an alternative (for example another scheduler), add a file to the group, such as
+`configs/scheduler/step.yaml` with a `_target_` class, and select it with `scheduler=step`.
+
 # Usage
-Run every command from the repository root; add `--help` to any script for its options.
+Run every command from the repository root.
 
 **1. Data preparation:** skull-strip the volumes, then select the negative patch centers.
 ```
-python3 scripts/remove_skull.py Data_dir
-python3 scripts/extract_points.py Data_dir
+python3 scripts/remove_skull.py data_dir=Data_dir
+python3 scripts/extract_points.py data_dir=Data_dir
 ```
 
-**2. Training preparation:** split the patients into training, validation and testing sets.
+**2. Split:** assign the patients to training, validation and testing.
 ```
-python3 scripts/preprocess_data.py Data_dir          # --split 0.7 0.2 0.1 --overwrite
-```
-
-**3. Training configuration:** edit the parameters in `scripts/new_train.py`, then create the training directory.
-```
-python3 scripts/new_train.py Data_dir/0Work/BaseConfig/ndl_config.json my_training
+python3 scripts/preprocess_data.py data_dir=Data_dir          # split=[0.7,0.2,0.1] overwrite=true
 ```
 
-**4. Training:**
+**3. Training:** outputs go to `Data_dir/0Work/my_training`; running the same command again resumes training.
 ```
-python3 scripts/train.py Data_dir/0Work/my_training
+python3 scripts/train.py data_dir=Data_dir name=my_training
 ```
 
-**5. Testing:** predictions are written to `Data_dir/0Work/my_training/prediction/test`.
+**4. Testing:** predictions are written to `Data_dir/0Work/my_training/prediction/test`.
 ```
-python3 scripts/predict.py Data_dir/0Work/my_training
+python3 scripts/predict.py train_dir=Data_dir/0Work/my_training
 ```
 
 # Differences from the published code

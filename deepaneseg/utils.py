@@ -1,11 +1,11 @@
-import logging, os, sys, shutil
+import logging
+import os
+import shutil
 
 import numpy as np
 import torch
-from torch import optim
 
-from deepaneseg.experimental.models import Proposition1, Proposition2, Proposition3
-from deepaneseg.models.models import UNet3D
+from hydra.utils import instantiate
 
 
 def save_checkpoint(state, is_best, checkpoint_dir, logger=None):
@@ -61,11 +61,12 @@ def load_checkpoint(
     return state
 
 
-def load_model(config):
-    if not os.path.exists(config["model_file"]):
-        raise IOError(f"Checkpoint '{config['model_file']}' does not exist")
-    model = get_model(config)
-    model.load_state_dict(torch.load(config["model_file"], map_location="cpu")["model_state_dict"])
+def load_model(model_cfg, checkpoint_path):
+    """Builds the model described by model_cfg (see configs/model) and loads its weights from checkpoint_path."""
+    if not os.path.exists(checkpoint_path):
+        raise IOError(f"Checkpoint '{checkpoint_path}' does not exist")
+    model = get_model(model_cfg)
+    model.load_state_dict(torch.load(checkpoint_path, map_location="cpu")["model_state_dict"])
     return model
 
 
@@ -73,21 +74,10 @@ loggers = {}
 
 
 def get_logger(name, level=logging.INFO):
-    global loggers
-    if loggers.get(name) is not None:
-        return loggers[name]
-    else:
-        logger = logging.getLogger(name)
-        logger.setLevel(level)
-
-        stream_handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter("%(asctime)s [%(threadName)s] %(levelname)s %(name)s - %(message)s")
-        stream_handler.setFormatter(formatter)
-        logger.addHandler(stream_handler)
-
-        loggers[name] = logger
-
-        return logger
+    """Returns a named logger; handlers are left to the application (Hydra configures console and file logs)."""
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    return logger
 
 
 def get_number_of_learnable_parameters(model):
@@ -109,60 +99,17 @@ class RunningAverage:
         self.avg = self.sum / self.count
 
 
-logger = get_logger("Model Configuration")
-
-
-def create_optimizer(model, learning_rate=1e-4, betas=(0.9, 0.999), eps=1e-7, weight_decay=0):
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=betas, eps=eps, weight_decay=weight_decay)
-    logger.info("Adam Optimizer")
-    return optimizer
-
-
-def create_lr_scheduler(optimizer, config):
-    if config["lr"] == "ReduceLROnPlateau":
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, mode="min", factor=config["learning_rate_drop"], patience=config["patience"]
-        )
-    elif config["lr"] == "StepLR":
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
-    elif config["lr"] == "MultiStepLR":
-        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[6, 8, 9], gamma=0.1)
-    elif config["lr"] == "ExponentialLR":
-        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.1)
-    elif config["lr"] == "CosineAnnealingLR":
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10, eta_min=0)
-    elif config["lr"] == "CyclicLR-triangular2":
-        scheduler = optim.lr_scheduler.CyclicLR(
-            optimizer, base_lr=0.001, max_lr=0.1, step_size_up=5, mode="triangular2"
-        )
-    elif config["lr"] == "CyclicLR-triangular":
-        scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=0.001, max_lr=0.1, step_size_up=5, mode="triangular")
-    elif config["lr"] == "CyclicLR-exp_range":
-        scheduler = optim.lr_scheduler.CyclicLR(
-            optimizer, base_lr=0.001, max_lr=0.1, step_size_up=5, mode="exp_range", gamma=0.85
-        )
-    elif config["lr"] == "OneCycleLR":
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.1, steps_per_epoch=10, epochs=10)
-    else:
-        raise ValueError(f"Unsupported LR Scheduler '{config['lr']}'")
-    logger.info(f"{config['lr']} Scheduler")
-
-    return scheduler
-
-
-def get_model(config, default_init=None, device="cpu"):
+def get_model(model_cfg, weight_init="pytorch", device="cpu"):
+    """
+    Instantiates the model described by model_cfg (a Hydra config with a _target_ class, see configs/model).
+    weight_init: "keras" (Xavier uniform, as in the paper) or "pytorch" (PyTorch defaults)
+    """
     logger = get_logger("Model creation")
-    models = {
-        "unet3d": UNet3D,
-        "Proposition1": Proposition1,
-        "Proposition2": Proposition2,
-        "Proposition3": Proposition3,
-    }
-    if config["model"] not in models:
-        raise ValueError(f"Unsupported model '{config['model']}', expected one of {sorted(models)}")
-    model = models[config["model"]]()
+    if weight_init not in ("keras", "pytorch"):
+        raise ValueError(f"Unsupported weight_init '{weight_init}', expected 'keras' or 'pytorch'")
+    model = instantiate(model_cfg, _convert_="all")
 
-    logger.info(f"The model '{config['model']}' was chosen to be trained")
+    logger.info(f"The model '{type(model).__name__}' was chosen to be trained")
     nparams = get_number_of_learnable_parameters(model)
     mem_params = sum([param.nelement() * param.element_size() for param in model.parameters()])
     size = (mem_params + sum([buf.nelement() * buf.element_size() for buf in model.buffers()])) * 1e-6
@@ -171,7 +118,7 @@ def get_model(config, default_init=None, device="cpu"):
     logger.info(f"Size allocated by the model is {size:.2f} mb")
 
     # initialization
-    if default_init == "keras":
+    if weight_init == "keras":
         logger.info("Apply Keras default initialization")
         model.apply(init_model)
     else:

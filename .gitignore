@@ -10,6 +10,10 @@ venv/
 .ipynb_checkpoints/
 .DS_Store
 
+# Hydra runs launched without an explicit run directory
+outputs/
+multirun/
+
 # training outputs and medical data
 logs/
 *.pytorch

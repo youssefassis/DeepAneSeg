@@ -1,54 +1,45 @@
 #!/usr/bin/env python3
-"""Predict the test patients with the model of <train_dir>; volumes are written to <train_dir>/prediction/test."""
+"""Predict the test patients with a trained model; configuration in configs/predict.yaml.
 
-import argparse
-import json
+Example: python scripts/predict.py train_dir=/data/0Work/exp1
+Data and model settings come from the training's resolved configuration (<train_dir>/.hydra/config.yaml).
+Predicted volumes are written to <train_dir>/prediction/test.
+"""
+
 import os
 
-import deepaneseg.data.io as dio
+import hydra
 import torch
+from omegaconf import OmegaConf
 
-from deepaneseg.utils import get_logger, load_model
+import deepaneseg.data.io as dio
 from deepaneseg.inference.prediction import ndl_run_validation_cases
+from deepaneseg.utils import get_logger, load_model
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("train_dir", help="training directory containing ndl_config.json (see new_train.py)")
-    d = parser.parse_args().train_dir
-    with open(os.path.join(d, "ndl_config.json")) as f:
-        config = json.load(f)
+@hydra.main(version_base="1.3", config_path="../configs", config_name="predict")
+def main(cfg):
+    logger = get_logger("Prediction")
+    train_cfg = OmegaConf.load(os.path.join(cfg.train_dir, ".hydra", "config.yaml"))
 
-    logger = get_logger("Data Preparation")
-
-    normalize = config["normalize"] if "normalize" in config else None
-
-    _, _, test_list = dio.read_split(config["split_file"])
+    _, _, test_list = dio.read_split(train_cfg.data.split_file)
     logger.info(f"{len(test_list)} Patients for testing")
+    test_db = dio.read_patient_data_base(test_list, volume=cfg.volume, normalize=train_cfg.data.normalize)
+    logger.info(f"'{cfg.volume}' successfully loaded with '{train_cfg.data.normalize}' normalization")
 
-    volume = "noskull volume"  # or init volume
-
-    test_db = dio.read_patient_data_base(test_list, volume=volume, normalize=normalize)
-    logger.info(f"'{volume}' successfully loaded with '{normalize}' normalization")
-
-    logger = get_logger("Model")
-
-    model = load_model(config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-    logger.info(f"Sending the model to '{device}'")
-
+    model = load_model(train_cfg.model, os.path.join(cfg.train_dir, cfg.checkpoint)).to(device)
     model.eval()
-    logger.info("Setting the model to evaluation mode")
+    logger.info(f"Model '{cfg.checkpoint}' loaded on '{device}' in evaluation mode")
 
     ndl_run_validation_cases(
         test_db,
         device=device,
         model=model,
-        patch_size=config["patch_size"],
-        output_dir=os.path.join(d, "prediction/test"),
-        margin=8,
-        batch_size=config["validation_batch_size"],
+        patch_size=list(train_cfg.data.patch_size),
+        output_dir=os.path.join(cfg.train_dir, "prediction", "test"),
+        margin=cfg.margin,
+        batch_size=cfg.batch_size or train_cfg.validation_batch_size,
     )
 
 
