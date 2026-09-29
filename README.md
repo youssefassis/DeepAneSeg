@@ -95,6 +95,23 @@ uv sync --extra cpu      # CPU only (also the build used on macOS)
 This creates `.venv` with the exact versions of `uv.lock`, including pytest and ruff. Commands then run with
 `uv run`, e.g. `uv run pytest`. Without uv, `pip install -e .` also works (PyTorch's default PyPI build).
 
+# Docker
+Build the image with the GPU (default) or CPU PyTorch build:
+```
+docker build -t deepaneseg .
+docker build -t deepaneseg:cpu --build-arg TORCH=cpu .
+```
+Mount the data folder and run any script; outputs are written under `Data_dir/0Work` on the host:
+```
+docker run --rm --gpus all --shm-size=8g -v /path/to/Data_dir:/data deepaneseg \
+    python scripts/train.py data_dir=/data name=my_training
+docker run --rm --gpus all --shm-size=8g -v /path/to/Data_dir:/data deepaneseg \
+    python scripts/predict.py train_dir=/data/0Work/my_training
+```
+GPU runs need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/) on the
+host. `--shm-size` gives the data-loading workers enough shared memory, and `--user $(id -u):$(id -g)` creates the
+output files with your own user.
+
 # Citation
 If you find this repository useful in your research, please consider citing:
 ```
