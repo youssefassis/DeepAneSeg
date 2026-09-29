@@ -127,7 +127,7 @@ def remove_skull_mask(vol,percent=60):
                 j0,j1,j2=next(g)
                 n+=1
             mask[m:M,i1,i2]=1
-    except:
+    except StopIteration:
         pass
 
     # erode this mask to remove the skull
