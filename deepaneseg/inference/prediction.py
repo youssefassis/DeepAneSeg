@@ -9,7 +9,7 @@ import SimpleITK as sitk
 from tqdm import tqdm
 
 import torch
-import Data.IO as dio
+import deepaneseg.data.io as dio
 
 def calculate_origin_offset(new_spacing, old_spacing):
     return np.subtract(new_spacing, old_spacing)/2
@@ -156,8 +156,8 @@ def ndl_run_validation_cases(pat_db, device, model, patch_size, output_dir='.', 
         ndl_run_validation_case(p, device, output_dir=output_dir, model=model, size=patch_size, margin=margin, batch_size=batch_size)
 
 
-from Volume.Edition import getTruth
-import DL.Evaluation as dle
+from deepaneseg.volume.edition import getTruth
+import deepaneseg.inference.evaluation as dle
 @torch.no_grad()
 def getPatientPrediction(pat_path, device, model, patch_size, output_dir='.', margin=8, batch_size=10, normalization='Normal'):
     pat_dict = dio.read_patient_data_base([pat_path], volume='init volume', normalize=normalization)[0]

@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn as nn
 from torch.autograd import Variable
-from utils import get_logger
+from deepaneseg.utils import get_logger
 
 logger = get_logger('Model Configuration')
 class DiceLoss(nn.Module):

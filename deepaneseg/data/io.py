@@ -5,8 +5,8 @@ import string
 import pandas as pd
 import json, glob
 
-from Volume.Selection import selectPoints
-from utils import get_logger
+from deepaneseg.volume.selection import selectPoints
+from deepaneseg.utils import get_logger
 
 logger = get_logger("Data Preparation")
 # the chosen file format is python pickle dump of a dict. This might not be the wisest choice, but 

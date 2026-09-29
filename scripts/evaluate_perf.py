@@ -1,12 +1,12 @@
-import Data.IO as dio
+import deepaneseg.data.io as dio
 #import Volume.Selection as vs
-import Volume.Edition as ve
-import Volume.Patch as vp
+import deepaneseg.volume.edition as ve
+import deepaneseg.volume.patch as vp
 import skimage.morphology as skimo
 import skimage.measure as skime
 import numpy as np
 import os
-import DL.Evaluation as DLe
+import deepaneseg.inference.evaluation as DLe
 import json
 
 base_dir='/home/yassis/Data'

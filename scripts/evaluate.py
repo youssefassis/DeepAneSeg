@@ -4,10 +4,10 @@ import sys
 import json
 import torch
 
-import Data.IO as dio
-import Volume.Patch as vp
+import deepaneseg.data.io as dio
+import deepaneseg.volume.patch as vp
 
-from utils import load_model, get_logger
+from deepaneseg.utils import load_model, get_logger
 
 from skimage import morphology, measure
 import numpy as np
