@@ -6,6 +6,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from deepaneseg.utils import get_logger, RunningAverage, save_checkpoint, load_checkpoint
 from prefetch_generator import BackgroundGenerator
+from deepaneseg.training.trainer import get_multiscale_gt
 logger = get_logger('Model Trainer')
 
 def create_trainer(config, device, model, optimizer, lr_scheduler, loss_criterion, eval_criterion, loaders, max_iterations):
@@ -149,7 +150,7 @@ class Trainer:
                     target = get_multiscale_gt(target)
                     target_vessel = get_multiscale_gt(target_vessel)
 
-                loss, metric = self.loss_batch(self.loss_criterion, self.eval_criterion, [output, output_vessel], [target, target_vessel], opt=self.optimizer)
+                loss, metric = self.loss_batch(self.loss_criterion, self.eval_criterion, [output, output_vessel], [target, target_vessel], opt=None)
 
                 eval_losses.update(loss, self._batch_size(input))
                 eval_metric.update(metric, self._batch_size(input))

@@ -3,8 +3,6 @@ import math
 
 import nibabel as nib
 import numpy as np
-import tables
-import progressbar
 import SimpleITK as sitk
 from tqdm import tqdm
 
@@ -41,7 +39,7 @@ def sitk_resample_to_image(image, reference_image, default_value=0., interpolato
 
 
 def sitk_new_blank_image(size, spacing, direction, origin, default_value=0.):
-    image = sitk.GetImageFromArray(np.ones(size, dtype=np.float).T * default_value)
+    image = sitk.GetImageFromArray(np.ones(size, dtype=float).T * default_value)
     image.SetSpacing(spacing)
     image.SetDirection(direction)
     image.SetOrigin(origin)
@@ -66,7 +64,7 @@ def data_to_sitk_image(data, spacing=(1., 1., 1.)):
     if len(data.shape) == 3:
         data = np.rot90(data, 1, axes=(0, 2))
     image = sitk.GetImageFromArray(data)
-    image.SetSpacing(np.asarray(spacing, dtype=np.float))
+    image.SetSpacing(np.asarray(spacing, dtype=float))
     return image
 
 def sitk_image_to_data(image):
