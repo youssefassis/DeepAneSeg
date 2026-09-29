@@ -37,6 +37,9 @@ testpaths = ["tests"]
 line-length = 120
 extend-exclude = ["notebooks"]
 
+[tool.ruff.format]
+line-ending = "lf"
+
 [tool.ruff.lint]
 select = ["E9", "F"]
 

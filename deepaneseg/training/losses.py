@@ -3,7 +3,8 @@ import torch.nn.functional as F
 from torch import nn as nn
 from deepaneseg.utils import get_logger
 
-logger = get_logger('Model Configuration')
+logger = get_logger("Model Configuration")
+
 
 def flatten(tensor):
     """Flattens a (N, C, D, H, W) tensor into (C, N * D * H * W), channel first."""
@@ -11,20 +12,22 @@ def flatten(tensor):
     axis_order = (1, 0) + tuple(range(2, tensor.dim()))
     return tensor.permute(axis_order).contiguous().view(channels, -1)
 
+
 class DiceLoss(nn.Module):
     def __init__(self):
         super(DiceLoss, self).__init__()
         logger.info("Dice Loss is used")
 
     def forward(self, inputs, targets, smooth=1):
-        #flatten label and prediction tensors
+        # flatten label and prediction tensors
         inputs = inputs.view(-1)
         targets = targets.view(-1)
 
         intersection = (inputs * targets).sum()
-        dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)
+        dice = (2.0 * intersection + smooth) / (inputs.sum() + targets.sum() + smooth)
 
         return 1 - dice
+
 
 class BCEDiceLoss(nn.Module):
     def __init__(self, weight=None, size_average=True):
@@ -32,26 +35,25 @@ class BCEDiceLoss(nn.Module):
         logger.info("BCEDiceLoss is used")
 
     def forward(self, inputs, targets, smooth=1):
-        #flatten label and prediction tensors
+        # flatten label and prediction tensors
         inputs = inputs.view(-1)
         targets = targets.view(-1)
 
         intersection = (inputs * targets).sum()
-        dice_loss = 1 - (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)
-        BCE = F.binary_cross_entropy(inputs, targets, reduction='mean')
+        dice_loss = 1 - (2.0 * intersection + smooth) / (inputs.sum() + targets.sum() + smooth)
+        BCE = F.binary_cross_entropy(inputs, targets, reduction="mean")
         dice_bce = BCE + dice_loss
 
         return dice_bce
 
+
 class WeightedCrossEntropyLoss(nn.Module):
-    """WeightedCrossEntropyLoss (WCE) as described in https://arxiv.org/pdf/1707.03237.pdf
-    """
+    """WeightedCrossEntropyLoss (WCE) as described in https://arxiv.org/pdf/1707.03237.pdf"""
 
     def __init__(self, ignore_index=-1):
         super(WeightedCrossEntropyLoss, self).__init__()
         self.ignore_index = ignore_index
         logger.info("WeightedCrossEntropyLoss is used")
-
 
     def forward(self, input, target):
         weight = self._class_weights(input)
@@ -62,10 +64,11 @@ class WeightedCrossEntropyLoss(nn.Module):
         # normalize the input first
         input = F.softmax(input, dim=1)
         flattened = flatten(input)
-        nominator = (1. - flattened).sum(-1)
+        nominator = (1.0 - flattened).sum(-1)
         denominator = flattened.sum(-1)
         class_weights = (nominator / denominator).detach()
         return class_weights
+
 
 class IoULoss(nn.Module):
     def __init__(self):
@@ -73,16 +76,17 @@ class IoULoss(nn.Module):
         logger.info("IoU Loss is used")
 
     def forward(self, inputs, targets, smooth=1):
-        #flatten label and prediction tensors
+        # flatten label and prediction tensors
         inputs = inputs.view(-1)
         targets = targets.view(-1)
-        #intersection is equivalent to True Positive count
-        #union is the mutually inclusive area of all labels & predictions
+        # intersection is equivalent to True Positive count
+        # union is the mutually inclusive area of all labels & predictions
         intersection = (inputs * targets).sum()
         total = (inputs + targets).sum()
         union = total - intersection
-        IoU = (intersection + smooth)/(union + smooth)
+        IoU = (intersection + smooth) / (union + smooth)
         return 1 - IoU
+
 
 class FocalLoss(nn.Module):
     def __init__(self):
@@ -90,14 +94,15 @@ class FocalLoss(nn.Module):
         logger.info("Focal Loss is used")
 
     def forward(self, inputs, targets, alpha=0.8, gamma=2):
-        #flatten label and prediction tensors
+        # flatten label and prediction tensors
         inputs = inputs.view(-1)
         targets = targets.view(-1)
-        #first compute binary cross-entropy
-        BCE = F.binary_cross_entropy(inputs, targets, reduction='mean')
+        # first compute binary cross-entropy
+        BCE = F.binary_cross_entropy(inputs, targets, reduction="mean")
         bce_exp = torch.exp(-BCE)
-        focal_loss = alpha * (1-bce_exp)**gamma * BCE
+        focal_loss = alpha * (1 - bce_exp) ** gamma * BCE
         return focal_loss
+
 
 class TverskyLoss(nn.Module):
     def __init__(self):
@@ -105,17 +110,18 @@ class TverskyLoss(nn.Module):
         logger.info("TverskyLoss is used")
 
     def forward(self, inputs, targets, smooth=1, alpha=0.5, beta=0.5):
-        #flatten label and prediction tensors
+        # flatten label and prediction tensors
         inputs = inputs.view(-1)
         targets = targets.view(-1)
 
-        #True Positives, False Positives & False Negatives
+        # True Positives, False Positives & False Negatives
         TP = (inputs * targets).sum()
-        FP = ((1-targets) * inputs).sum()
-        FN = (targets * (1-inputs)).sum()
+        FP = ((1 - targets) * inputs).sum()
+        FN = (targets * (1 - inputs)).sum()
 
-        Tversky = (TP + smooth) / (TP + alpha*FP + beta*FN + smooth)
+        Tversky = (TP + smooth) / (TP + alpha * FP + beta * FN + smooth)
         return 1 - Tversky
+
 
 class FocalTverskyLoss(nn.Module):
     def __init__(self):
@@ -123,18 +129,19 @@ class FocalTverskyLoss(nn.Module):
         logger.info("FocalTverskyLoss is used")
 
     def forward(self, inputs, targets, smooth=1, alpha=0.5, beta=0.5, gamma=1):
-        #flatten label and prediction tensors
+        # flatten label and prediction tensors
         inputs = inputs.view(-1)
         targets = targets.view(-1)
-        #True Positives, False Positives & False Negatives
+        # True Positives, False Positives & False Negatives
         TP = (inputs * targets).sum()
-        FP = ((1-targets) * inputs).sum()
-        FN = (targets * (1-inputs)).sum()
+        FP = ((1 - targets) * inputs).sum()
+        FN = (targets * (1 - inputs)).sum()
 
-        Tversky = (TP + smooth) / (TP + alpha*FP + beta*FN + smooth)
-        focal_tversky = (1 - Tversky)**gamma
+        Tversky = (TP + smooth) / (TP + alpha * FP + beta * FN + smooth)
+        focal_tversky = (1 - Tversky) ** gamma
 
         return focal_tversky
+
 
 class KappaLoss(nn.Module):
     def __init__(self):
@@ -144,46 +151,47 @@ class KappaLoss(nn.Module):
     def forward(self, inputs, targets):
         N = torch.numel(inputs)
         numerator = 2 * (inputs * targets).sum() - (targets.sum() * inputs.sum()) / N
-        disc = targets.sum() + inputs.sum() - 2 * (inputs* targets).sum() / N
+        disc = targets.sum() + inputs.sum() - 2 * (inputs * targets).sum() / N
         kappa = numerator / disc
         return 1 - kappa
 
+
 #######################################################################################################################
 
+
 def get_loss_criterion(name):
-    assert name is not None, 'Could not find loss function'
+    assert name is not None, "Could not find loss function"
 
     if name == "BCELoss":
         logger.info("BCELoss is used")
         return nn.BCELoss()
     elif name == "FocalLoss":
         return FocalLoss()
-    elif name == 'DiceLoss':
+    elif name == "DiceLoss":
         return DiceLoss()
-    elif name == 'BCEDiceLoss':
+    elif name == "BCEDiceLoss":
         return BCEDiceLoss()
-    elif name == 'TverskyLoss':
+    elif name == "TverskyLoss":
         return TverskyLoss()
-    elif name == 'FocalTverskyLoss':
+    elif name == "FocalTverskyLoss":
         return FocalTverskyLoss()
-    elif name == 'BCEWithLogitsLoss':
+    elif name == "BCEWithLogitsLoss":
         logger.info("BCEWithLogitsLoss is used")
         return nn.BCEWithLogitsLoss()
-    elif name == 'WeightedCrossEntropyLoss':
+    elif name == "WeightedCrossEntropyLoss":
         return WeightedCrossEntropyLoss()
-    elif name == 'KappaLoss':
+    elif name == "KappaLoss":
         return KappaLoss()
-    elif name == 'MSELoss':
+    elif name == "MSELoss":
         logger.info("MSELoss is used")
         return nn.MSELoss()
     elif name == "IoULoss":
         return IoULoss()
-    elif name == 'SmoothL1Loss':
+    elif name == "SmoothL1Loss":
         logger.info("SmoothL1Loss is used")
         return nn.SmoothL1Loss()
-    elif name == 'L1Loss':
+    elif name == "L1Loss":
         logger.info("L1Loss is used")
         return nn.L1Loss()
     else:
         raise RuntimeError(f"Unsupported loss function: '{name}'")
-

@@ -2,14 +2,30 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-from deepaneseg.models.building_blocks import number_of_features_per_level, create_encoders, create_decoders, create_conv3d, DoubleConv
+from deepaneseg.models.building_blocks import (
+    number_of_features_per_level,
+    create_encoders,
+    create_decoders,
+    create_conv3d,
+    DoubleConv,
+)
 
 #######################################  UNET 3D #########################################################
 
+
 class UNet3D(nn.Module):
-    def __init__(self, in_channels=1, out_channels=1, basic_module=DoubleConv,
-                    f_maps=64, layer_order='cbr', num_levels=4,
-                    conv_kernel_size=3, pool_kernel_size=2, conv_padding=1):
+    def __init__(
+        self,
+        in_channels=1,
+        out_channels=1,
+        basic_module=DoubleConv,
+        f_maps=64,
+        layer_order="cbr",
+        num_levels=4,
+        conv_kernel_size=3,
+        pool_kernel_size=2,
+        conv_padding=1,
+    ):
 
         super(UNet3D, self).__init__()
         if isinstance(f_maps, int):
@@ -18,14 +34,13 @@ class UNet3D(nn.Module):
         assert isinstance(f_maps, list) or isinstance(f_maps, tuple)
         assert len(f_maps) > 1, "Required at least 2 levels in the 3D U-Net"
 
-        self.encoders = create_encoders(in_channels, f_maps, basic_module, conv_kernel_size,
-                                        conv_padding, layer_order, pool_kernel_size)
+        self.encoders = create_encoders(
+            in_channels, f_maps, basic_module, conv_kernel_size, conv_padding, layer_order, pool_kernel_size
+        )
 
-        self.decoders = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding,
-                                        layer_order)
+        self.decoders = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding, layer_order)
         self.final_conv = create_conv3d(f_maps[0], out_channels, kernel=1, padding=0)
         self.final_activation = nn.Sigmoid()
-
 
     def forward(self, x):
         # Encoder part
@@ -43,9 +58,18 @@ class UNet3D(nn.Module):
 
 #######################################  Proposition 1 #########################################################
 class Proposition1(nn.Module):
-    def __init__(self, in_channels=1, out_channels=1, basic_module=DoubleConv,
-                    f_maps=64, layer_order='cbr', num_levels=4,
-                    conv_kernel_size=3, pool_kernel_size=2, conv_padding=1):
+    def __init__(
+        self,
+        in_channels=1,
+        out_channels=1,
+        basic_module=DoubleConv,
+        f_maps=64,
+        layer_order="cbr",
+        num_levels=4,
+        conv_kernel_size=3,
+        pool_kernel_size=2,
+        conv_padding=1,
+    ):
 
         super(Proposition1, self).__init__()
         if isinstance(f_maps, int):
@@ -54,23 +78,22 @@ class Proposition1(nn.Module):
         assert isinstance(f_maps, list) or isinstance(f_maps, tuple)
         assert len(f_maps) > 1, "Required at least 2 levels in the 3D U-Net"
 
-        self.encodersDet = create_encoders(in_channels, f_maps, basic_module, conv_kernel_size,
-                                        conv_padding, layer_order, pool_kernel_size)
+        self.encodersDet = create_encoders(
+            in_channels, f_maps, basic_module, conv_kernel_size, conv_padding, layer_order, pool_kernel_size
+        )
 
-        self.decodersDet = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding,
-                                        layer_order)
+        self.decodersDet = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding, layer_order)
         self.final_convDet = create_conv3d(f_maps[0], out_channels, kernel=1, padding=0)
 
-        self.encodersSeg = create_encoders(in_channels, f_maps, basic_module, conv_kernel_size,
-                                        conv_padding, layer_order, pool_kernel_size)
+        self.encodersSeg = create_encoders(
+            in_channels, f_maps, basic_module, conv_kernel_size, conv_padding, layer_order, pool_kernel_size
+        )
 
-        self.decodersSeg = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding,
-                                        layer_order)
+        self.decodersSeg = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding, layer_order)
         self.final_convSeg = create_conv3d(f_maps[0], out_channels, kernel=1, padding=0)
 
         self.final_activation = nn.Sigmoid()
         self.attentionblocks = create_attention_blocks(list(reversed(f_maps)))
-
 
     def forward(self, x_det, x_seg=None):
         # VESSEL SEGMENTATION
@@ -100,7 +123,7 @@ class Proposition1(nn.Module):
             x_det = decoder(encoder_features, x_det)
             if x_seg is not None:
                 # Attention block
-                x_det = self.attentionblocks[i+1](x_det, seg_features[i+1])
+                x_det = self.attentionblocks[i + 1](x_det, seg_features[i + 1])
         x_det = self.final_convDet(x_det)
         x_det = self.final_activation(x_det)
         if x_seg is not None:
@@ -108,26 +131,30 @@ class Proposition1(nn.Module):
         else:
             return x_det
 
+
 def create_attention_blocks(f_maps):
     attention_blocks = []
     for i in f_maps:
         attention_blocks.append(Attention(i))
     return nn.ModuleList(attention_blocks)
 
+
 class Attention(nn.Module):
     def __init__(self, in_channels):
         super(Attention, self).__init__()
-        if  in_channels == 512:
+        if in_channels == 512:
             self.upsampling = nn.ConvTranspose3d(in_channels, in_channels, kernel_size=3, stride=1, padding=0)
         else:
-            self.upsampling = nn.ConvTranspose3d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, output_padding=1)
+            self.upsampling = nn.ConvTranspose3d(
+                in_channels, in_channels, kernel_size=3, stride=2, padding=1, output_padding=1
+            )
         self.conv = nn.Conv3d(in_channels, in_channels, kernel_size=3, stride=1, padding=1, bias=True)
         self.activation = nn.ReLU(inplace=True)
 
     def crop_and_upsample(self, x, d=2):
         dim = x.shape[-1]
         a = (dim - dim // d) // 2
-        cropped = x[:, :, a:dim-a, a:dim-a, a:dim-a]
+        cropped = x[:, :, a : dim - a, a : dim - a, a : dim - a]
         return self.upsampling(cropped)
 
     def forward(self, detection, segmentation):
@@ -140,6 +167,7 @@ class Attention(nn.Module):
         # conv
         detection = self.conv(detection)
         return detection
+
 
 class ProjectExciteLayer(nn.Module):
     def __init__(self, num_channels, reduction_ratio=2):
@@ -171,9 +199,13 @@ class ProjectExciteLayer(nn.Module):
         squeeze_tensor_d = F.adaptive_avg_pool3d(input_tensor, (D, 1, 1))
 
         # tile tensors to original size and add:
-        final_squeeze_tensor = sum([squeeze_tensor_w.view(batch_size, num_channels, 1, 1, W),
-                                    squeeze_tensor_h.view(batch_size, num_channels, 1, H, 1),
-                                    squeeze_tensor_d.view(batch_size, num_channels, D, 1, 1)])
+        final_squeeze_tensor = sum(
+            [
+                squeeze_tensor_w.view(batch_size, num_channels, 1, 1, W),
+                squeeze_tensor_h.view(batch_size, num_channels, 1, H, 1),
+                squeeze_tensor_d.view(batch_size, num_channels, D, 1, 1),
+            ]
+        )
 
         # Excitation:
         final_squeeze_tensor = self.sigmoid(self.conv_cT(self.relu(self.conv_c(final_squeeze_tensor))))
@@ -183,10 +215,20 @@ class ProjectExciteLayer(nn.Module):
 
 #######################################  Proposition 2 #########################################################
 
+
 class Proposition2(nn.Module):
-    def __init__(self, in_channels=1, out_channels=1, basic_module=DoubleConv,
-                    f_maps=64, layer_order='cbr', num_levels=4,
-                    conv_kernel_size=3, pool_kernel_size=2, conv_padding=1):
+    def __init__(
+        self,
+        in_channels=1,
+        out_channels=1,
+        basic_module=DoubleConv,
+        f_maps=64,
+        layer_order="cbr",
+        num_levels=4,
+        conv_kernel_size=3,
+        pool_kernel_size=2,
+        conv_padding=1,
+    ):
 
         super(Proposition2, self).__init__()
         if isinstance(f_maps, int):
@@ -195,19 +237,19 @@ class Proposition2(nn.Module):
         assert isinstance(f_maps, list) or isinstance(f_maps, tuple)
         assert len(f_maps) > 1, "Required at least 2 levels in the 3D U-Net"
         ## Detection
-        self.encodersDet = create_encoders(in_channels, f_maps, basic_module, conv_kernel_size,
-                                        conv_padding, layer_order, pool_kernel_size)
+        self.encodersDet = create_encoders(
+            in_channels, f_maps, basic_module, conv_kernel_size, conv_padding, layer_order, pool_kernel_size
+        )
 
-        self.decodersDet = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding,
-                                        layer_order)
+        self.decodersDet = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding, layer_order)
         self.DetMultiscaleConvs = create_multiscale_convs(list(reversed(f_maps)))
 
         ## SEGMENTATION
-        self.encodersSeg = create_encoders(in_channels, f_maps, basic_module, conv_kernel_size,
-                                        conv_padding, layer_order, pool_kernel_size)
+        self.encodersSeg = create_encoders(
+            in_channels, f_maps, basic_module, conv_kernel_size, conv_padding, layer_order, pool_kernel_size
+        )
 
-        self.decodersSeg = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding,
-                                        layer_order)
+        self.decodersSeg = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding, layer_order)
         self.SegMultiscaleConvs = create_multiscale_convs(list(reversed(f_maps)))
 
         self.final_activation = nn.Sigmoid()
@@ -216,7 +258,7 @@ class Proposition2(nn.Module):
     def forward(self, x_det, x_seg=None):
         # VESSEL SEGMENTATION
         if x_seg is not None:
-            encoders_features_seg, vessel_predictions = [],[]
+            encoders_features_seg, vessel_predictions = [], []
             for encoder in self.encodersSeg:
                 x_seg = encoder(x_seg)
                 encoders_features_seg.insert(0, x_seg)
@@ -226,7 +268,7 @@ class Proposition2(nn.Module):
             for i, (decoder, encoder_features) in enumerate(zip(self.decodersSeg, encoders_features_seg[1:])):
                 x_seg = decoder(encoder_features, x_seg)
                 seg_features.append(x_seg)
-                vessel_predictions.append(self.final_activation(self.SegMultiscaleConvs[i+1](x_seg)))
+                vessel_predictions.append(self.final_activation(self.SegMultiscaleConvs[i + 1](x_seg)))
 
             x_seg = self.final_activation(vessel_predictions[-1])
 
@@ -234,23 +276,26 @@ class Proposition2(nn.Module):
         encoders_features_det, detection_predictions = [], []
         for i, encoder in enumerate(self.encodersDet):
             x_det = encoder(x_det)
-            if i == len(self.encodersDet)-1: #x_seg is not None and 
+            if i == len(self.encodersDet) - 1:  # x_seg is not None and
                 detection_predictions.append(self.final_activation(self.DetMultiscaleConvs[0](x_det)))
             encoders_features_det.insert(0, x_det)
         # Decoders
         for i, (decoder, encoder_features) in enumerate(zip(self.decodersDet, encoders_features_det[1:])):
             # Attention
             if x_seg is not None:
-                encoder_features = self.attentionblocks[i](encoder_features, detection_predictions[-1], vessel_predictions[i])
+                encoder_features = self.attentionblocks[i](
+                    encoder_features, detection_predictions[-1], vessel_predictions[i]
+                )
 
             x_det = decoder(encoder_features, x_det)
-            detection_predictions.append(self.final_activation(self.DetMultiscaleConvs[i+1](x_det)))
+            detection_predictions.append(self.final_activation(self.DetMultiscaleConvs[i + 1](x_det)))
         x_det = detection_predictions[-1]
 
         if x_seg is not None:
             return detection_predictions, vessel_predictions
         else:
             return detection_predictions
+
 
 def create_multiscale_convs(f_maps):
     convs = []
@@ -260,13 +305,17 @@ def create_multiscale_convs(f_maps):
 
 
 class MTA(nn.Module):
-    def __init__(self, in_channels ):
+    def __init__(self, in_channels):
         super(MTA, self).__init__()
-        self.conv1 = nn.Conv3d(in_channels, in_channels//2, kernel_size=3, stride=1, padding=1, bias=True)
-        self.conv2 = nn.Conv3d(in_channels, in_channels//2, kernel_size=3, stride=1, padding=1, bias=True)
+        self.conv1 = nn.Conv3d(in_channels, in_channels // 2, kernel_size=3, stride=1, padding=1, bias=True)
+        self.conv2 = nn.Conv3d(in_channels, in_channels // 2, kernel_size=3, stride=1, padding=1, bias=True)
 
-        self.deconv1 = nn.ConvTranspose3d(1, 1, kernel_size=3, stride=2, padding=1, output_padding=1) #(1, 1, kernel_size=2, stride=2, padding=0)  
-        self.deconv2 = nn.ConvTranspose3d(1, 1, kernel_size=3, stride=2, padding=1, output_padding=1) #(1, 1, kernel_size=2, stride=2, padding=0)  
+        self.deconv1 = nn.ConvTranspose3d(
+            1, 1, kernel_size=3, stride=2, padding=1, output_padding=1
+        )  # (1, 1, kernel_size=2, stride=2, padding=0)
+        self.deconv2 = nn.ConvTranspose3d(
+            1, 1, kernel_size=3, stride=2, padding=1, output_padding=1
+        )  # (1, 1, kernel_size=2, stride=2, padding=0)
 
         self.conv = nn.Conv3d(in_channels, in_channels, kernel_size=3, stride=1, padding=1, bias=True)
         self.project_excitation = ProjectExciteLayer(in_channels)
@@ -286,6 +335,7 @@ class MTA(nn.Module):
         aneurysm = aneurysm + skip
         return aneurysm
 
+
 def create_mta_blocks(f_maps):
     attention_blocks = []
     for i in list(reversed(f_maps)):
@@ -296,19 +346,28 @@ def create_mta_blocks(f_maps):
 
 #######################################  Proposition 3 #########################################################
 
+
 def create_upsampling_blocks(f_maps):
     deconvs = []
     for in_channels in f_maps:
-        deconvs.append(nn.ConvTranspose3d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, output_padding=1))
+        deconvs.append(
+            nn.ConvTranspose3d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, output_padding=1)
+        )
     return nn.ModuleList(deconvs)
+
 
 class AttentionProp3(nn.Module):
     def __init__(self, in_channels):
         super(AttentionProp3, self).__init__()
-        self.upsampling = nn.ConvTranspose3d(in_channels, in_channels//2, kernel_size=3, stride=1, padding=1,)# output_padding=1)
-        self.conv = nn.Conv3d(in_channels//2, in_channels//2, kernel_size=3, stride=1, padding=1, bias=True)
-        self.activation = nn.ReLU() #inplace=True)
-
+        self.upsampling = nn.ConvTranspose3d(
+            in_channels,
+            in_channels // 2,
+            kernel_size=3,
+            stride=1,
+            padding=1,
+        )  # output_padding=1)
+        self.conv = nn.Conv3d(in_channels // 2, in_channels // 2, kernel_size=3, stride=1, padding=1, bias=True)
+        self.activation = nn.ReLU()  # inplace=True)
 
     def forward(self, skip, features):
         features = self.upsampling(features)
@@ -318,9 +377,9 @@ class AttentionProp3(nn.Module):
         # Multiplication
         features = features * skip
 
-
         features = self.conv(features)
         return features
+
 
 def create_attention_blocks_prop3(f_maps):
     blocks = []
@@ -330,9 +389,19 @@ def create_attention_blocks_prop3(f_maps):
 
 
 class Proposition3(nn.Module):
-    def __init__(self, in_channels=1, out_channels=1, basic_module=DoubleConv,
-                    f_maps=64, layer_order='cbr', num_levels=4,
-                    conv_kernel_size=3, pool_kernel_size=2, conv_padding=1, deep_supervision=True):
+    def __init__(
+        self,
+        in_channels=1,
+        out_channels=1,
+        basic_module=DoubleConv,
+        f_maps=64,
+        layer_order="cbr",
+        num_levels=4,
+        conv_kernel_size=3,
+        pool_kernel_size=2,
+        conv_padding=1,
+        deep_supervision=True,
+    ):
 
         super(Proposition3, self).__init__()
         if isinstance(f_maps, int):
@@ -341,11 +410,13 @@ class Proposition3(nn.Module):
         assert isinstance(f_maps, list) or isinstance(f_maps, tuple)
         assert len(f_maps) > 1, "Required at least 2 levels in the 3D U-Net"
 
-        self.encoders = create_encoders(in_channels, f_maps, basic_module, conv_kernel_size,
-                                        conv_padding, layer_order, pool_kernel_size)
+        self.encoders = create_encoders(
+            in_channels, f_maps, basic_module, conv_kernel_size, conv_padding, layer_order, pool_kernel_size
+        )
 
-        self.decoders = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding,
-                                        layer_order, upsampling=False)
+        self.decoders = create_decoders(
+            f_maps, basic_module, conv_kernel_size, conv_padding, layer_order, upsampling=False
+        )
         self.deep_supervision = deep_supervision
         if self.deep_supervision:
             self.DetMultiscaleConvs = create_multiscale_convs(list(reversed(f_maps)))
@@ -360,17 +431,16 @@ class Proposition3(nn.Module):
         detection_predictions, encoders_features = [], []
         for i, encoder in enumerate(self.encoders):
             x = encoder(x)
-            if self.deep_supervision and i == len(self.encoders)-1:
+            if self.deep_supervision and i == len(self.encoders) - 1:
                 detection_predictions.append(self.final_activation(self.DetMultiscaleConvs[0](x)))
             encoders_features.insert(0, x)
         # Decoder part
         for i, (decoder, encoder_features) in enumerate(zip(self.decoders, encoders_features[1:])):
-            x = self.upsampling[i] (x)
+            x = self.upsampling[i](x)
             encoder_features = self.attentionBlocks[i](encoder_features, x)
             x = decoder(encoder_features, x)
             if self.deep_supervision:
-                detection_predictions.append(self.final_activation(self.DetMultiscaleConvs[i+1](x)))
+                detection_predictions.append(self.final_activation(self.DetMultiscaleConvs[i + 1](x)))
         if not self.deep_supervision:
             detection_predictions = self.final_activation(self.final_conv(x))
         return detection_predictions
-
