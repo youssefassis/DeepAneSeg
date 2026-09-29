@@ -126,7 +126,7 @@ def find_maximum_patch_size(model, device):
 
 logger = get_logger('Model Configuration')
 def create_optimizer(model, learning_rate=1e-4, betas=(0.9, 0.999), eps=1e-7, weight_decay=0):
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), eps=eps,  weight_decay=weight_decay)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=betas, eps=eps, weight_decay=weight_decay)
     logger.info (f'Adam Optimizer')
     return optimizer
 
