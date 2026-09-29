@@ -82,6 +82,12 @@ uv run python scripts/train.py data_dir=Data_dir name=my_training
 uv run python scripts/predict.py train_dir=Data_dir/0Work/my_training
 ```
 
+**5. Evaluation:** detection metrics of the test predictions (ADAM challenge criteria: sensitivity and false
+positives per patient), written to `Data_dir/0Work/my_training/evaluation`.
+```
+uv run python scripts/evaluate.py train_dir=Data_dir/0Work/my_training    # threshold=0.5 min_size=null
+```
+
 # Differences from the published code
 The Kappa metric/loss follows Cohen's definition and the focal loss is computed per voxel (Lin et al.), so
 trainings using them can give numbers that differ slightly from the published ones.
