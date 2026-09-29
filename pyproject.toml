@@ -32,3 +32,10 @@ include = ["deepaneseg*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+# Tightened step by step as the existing code is fixed.
+select = ["E9"]
