@@ -155,7 +155,6 @@ class Trainer:
         )
 
     def fit(self, sanity_check=False, deep_supervision=False):
-        torch.backends.cudnn.benchmark = True
         self.adjust_lr = True
         logger.info(f"Start training the model for the next {self.max_num_epochs - self.num_epoch} epochs")
         for epoch in range(self.num_epoch, self.max_num_epochs):

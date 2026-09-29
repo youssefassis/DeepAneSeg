@@ -22,7 +22,7 @@ def main(cfg):
 
     os.makedirs(os.path.dirname(os.path.abspath(split_file)), exist_ok=True)
     pat_list = dio.fetch_patient_dirs(os.path.abspath(cfg.data.data_dir))
-    dio.save_split(split_file, *dgen.split_pat_list(pat_list, *cfg.split))
+    dio.save_split(split_file, *dgen.split_pat_list(pat_list, *cfg.split, seed=cfg.seed))
 
 
 if __name__ == "__main__":
