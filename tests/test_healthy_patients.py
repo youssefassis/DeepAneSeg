@@ -45,3 +45,21 @@ def test_adam_evaluation_on_healthy_patient():
     tp, fp, _, _ = adam_evaluation(pred, np.eye(4), NO_SPHERES)
 
     assert (tp, fp) == (0, 1)
+
+
+def test_points_are_extracted_for_a_patient_without_aneurysm(tmp_path):
+    import json
+
+    import nibabel as ni
+    import pandas as pd
+
+    from deepaneseg.data.io import extract_points_from_patient
+
+    vol = np.random.default_rng(0).random((40, 40, 40)).astype(np.float32)
+    ni.save(ni.Nifti1Image(vol, np.diag([0.5, 0.5, 0.5, 1.0])), tmp_path / "noskull.nii.gz")
+    (tmp_path / "config.json").write_text(json.dumps({"noskull volume": "noskull.nii.gz"}))
+
+    extract_points_from_patient(str(tmp_path), r=4, nb_points=5)
+
+    points = pd.read_csv(tmp_path / "points.csv")
+    assert set(points["type"]) == {"Vessel", "Parenchyma"} and len(points) == 10
