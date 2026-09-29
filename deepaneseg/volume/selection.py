@@ -9,12 +9,12 @@ def extract_points_thres(vol, vox2met, thres_low, thres_high):
     return points in vol whose value is between thres_low (strictly)
     and thres_high (loosely)
     return points coordinates (p) and values at these points (v)
-    p is returned as a Nx3 array (or D is len(vol.shape) == D)
-    and v is returned as 1xN-array
+    p is returned as a Nx3 array (or D is len(vol.shape) == D) of voxel centers in metric coordinates
+    (NIfTI convention: voxel index i is centered at vox2met @ [i, 1]), and v as a 1xN-array
     """
     idx = np.nonzero(np.logical_and(vol > thres_low, vol <= thres_high))
     v = vol[idx]
-    p = vox2met[:3, :] @ np.vstack((idx, np.ones(len(v)))) + (0.5 * vox2met[:3, :3] @ np.ones(3)).reshape((-1, 1))
+    p = vox2met[:3, :] @ np.vstack((idx, np.ones(len(v))))
 
     return p.T, v
 
