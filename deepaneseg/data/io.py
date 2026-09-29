@@ -25,7 +25,7 @@ def fetch_patient_dirs(base_dir):
     primary use it to generate a list of patient directory names, with base_dir=config['base_dir'] (where
     config is read from a base config.json file, see PreprocessData.ipynb)
     """
-    return [os.path.dirname(subject_conf) for subject_conf in glob.glob(os.path.join(base_dir, "P????", "config.json"))]
+    return sorted(os.path.dirname(conf) for conf in glob.glob(os.path.join(base_dir, "P????", "config.json")))
 
 
 def read_nii_from_file(fname):

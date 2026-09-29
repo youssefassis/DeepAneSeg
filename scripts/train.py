@@ -6,6 +6,9 @@ Checkpoints, TensorBoard logs and the resolved configuration (.hydra/) are writt
 Running the same command again resumes from the last checkpoint.
 """
 
+import json
+import os
+
 import hydra
 import torch
 from hydra.core.hydra_config import HydraConfig
@@ -16,7 +19,7 @@ from deepaneseg.training.dataset import get_dataloaders
 from deepaneseg.training.losses import get_loss_criterion
 from deepaneseg.training.metrics import get_metric
 from deepaneseg.training.trainer import create_trainer
-from deepaneseg.utils import get_model
+from deepaneseg.utils import get_model, run_info, seed_everything
 
 
 def load_patients(pat_list, data_cfg, label):
@@ -29,6 +32,12 @@ def load_patients(pat_list, data_cfg, label):
 @hydra.main(version_base="1.3", config_path="../configs", config_name="train")
 def main(cfg):
     train_dir = HydraConfig.get().runtime.output_dir
+    if cfg.seed is not None:
+        seed_everything(cfg.seed)
+    torch.backends.cudnn.benchmark = not cfg.deterministic
+    torch.backends.cudnn.deterministic = cfg.deterministic
+    with open(os.path.join(train_dir, "run_info.json"), "w") as f:
+        json.dump(run_info(seed=cfg.seed), f, indent=2)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = get_model(cfg.model, weight_init=cfg.weight_init, device=device)
