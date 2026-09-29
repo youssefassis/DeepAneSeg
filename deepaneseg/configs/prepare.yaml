@@ -1,0 +1,11 @@
+# Converts a dataset of scans and aneurysm label masks (defaults: ADAM challenge layout) to the pipeline's layout
+source_dir: ???                    # dataset to convert
+data_dir: ???                      # output folder, one P???? folder per case
+scan: "{case}/orig/TOF.nii.gz"     # scan of each case, relative to source_dir; {case} matches one name
+mask: "{case}/aneurysms.nii.gz"    # aneurysm label mask of a case, relative to source_dir; null if there are none
+labels: null                       # mask values that are aneurysms, e.g. [1] for ADAM (2: treated); null: any non-zero
+overwrite: false                   # replace existing patients in data_dir
+
+hydra:
+  run:
+    dir: ${data_dir}/0Work/logs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S}
