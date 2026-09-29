@@ -1,6 +1,10 @@
 import logging
 import os
+import platform
+import random
 import shutil
+import subprocess
+from datetime import datetime, timezone
 
 import numpy as np
 import torch
@@ -78,6 +82,39 @@ def get_logger(name, level=logging.INFO):
     logger = logging.getLogger(name)
     logger.setLevel(level)
     return logger
+
+
+def seed_everything(seed):
+    """Seeds Python, NumPy and PyTorch (CPU and CUDA). DataLoader workers derive their seeds from PyTorch's."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+
+def _git_commit():
+    """Commit of the checkout the code runs from, or DEEPANESEG_GIT_COMMIT (set in the Docker image)."""
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    try:
+        commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True, check=True)
+        status = subprocess.run(["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True, check=True)
+        return commit.stdout.strip(), bool(status.stdout.strip())
+    except (OSError, subprocess.CalledProcessError):
+        return os.environ.get("DEEPANESEG_GIT_COMMIT", "unknown"), None
+
+
+def run_info(**extra):
+    """Code and environment versions of a run, to be stored with its outputs."""
+    commit, dirty = _git_commit()
+    return {
+        "git_commit": commit,
+        "git_uncommitted_changes": dirty,
+        "python": platform.python_version(),
+        "torch": torch.__version__,
+        "cuda": torch.version.cuda,
+        "numpy": np.__version__,
+        "date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        **extra,
+    }
 
 
 def get_number_of_learnable_parameters(model):
