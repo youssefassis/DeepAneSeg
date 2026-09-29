@@ -4,9 +4,12 @@ COPY --from=ghcr.io/astral-sh/uv:0.11.15 /uv /uvx /bin/
 
 # PyTorch build: cu126 (NVIDIA GPU, run with --gpus all) or cpu
 ARG TORCH=cu126
+# Recorded in each training's run_info.json, since the image has no .git
+ARG GIT_COMMIT=unknown
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never \
+    DEEPANESEG_GIT_COMMIT=${GIT_COMMIT} \
     PATH="/app/.venv/bin:$PATH"
 
 WORKDIR /app

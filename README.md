@@ -55,6 +55,10 @@ Settings are [Hydra](https://hydra.cc) configs in `configs/`: one file per scrip
 uv run python scripts/train.py data_dir=Data_dir name=my_training batch_size=8 optimizer.lr=3e-4 model.f_maps=32
 uv run python scripts/train.py --cfg job --resolve data_dir=Data_dir name=my_training   # print the config
 ```
+Runs are reproducible: `seed` (0 by default) fixes the patient split and the training, and each training writes
+`run_info.json` with the git commit and library versions next to its checkpoints. For identical GPU runs, also set
+`deterministic=true` (slower).
+
 To add an alternative (for example another scheduler), add a file to the group, such as
 `configs/scheduler/step.yaml` with a `_target_` class, and select it with `scheduler=step`.
 
@@ -104,7 +108,7 @@ This creates `.venv` with the exact versions of `uv.lock`, including pytest and 
 # Docker
 Build the image with the GPU (default) or CPU PyTorch build:
 ```
-docker build -t deepaneseg .
+docker build -t deepaneseg --build-arg GIT_COMMIT=$(git rev-parse HEAD) .
 docker build -t deepaneseg:cpu --build-arg TORCH=cpu .
 ```
 Mount the data folder and run any script; outputs are written under `Data_dir/0Work` on the host:

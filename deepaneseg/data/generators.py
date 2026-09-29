@@ -60,16 +60,16 @@ def generate_transforms(trans=None, rot=None, center=None, disp=None):
     return affine, disp
 
 
-def split_pat_list(pat_list, training_pct=0.7, validation_pct=0.2, testing_pct=0.1):
+def split_pat_list(pat_list, training_pct=0.7, validation_pct=0.2, testing_pct=0.1, seed=None):
     """
     split a list of patient directories according to percentages (sum is normalized to 1 if necessary).
     returns three lists for (resp.) training, validation and testing
+    The split only depends on the seed (and the patients), not on the order of pat_list; seed=None gives a random split.
     Example use with a dictionary list da, as returned by io.read_patient_data_base()
-    train_list, valid_list, test_list = split_pat_list([d['dir'] for d in da])
+    train_list, valid_list, test_list = split_pat_list([d['dir'] for d in da], seed=0)
     """
     train_nb = round(len(pat_list) * training_pct / (training_pct + validation_pct + testing_pct))
     valid_nb = round((len(pat_list) - train_nb) * validation_pct / (validation_pct + testing_pct))
-    # test_nb = len(pat_list)-train_nb-valid_nb -> for info, not used
-    # the original list is shuffled, and thereby modified. Use sample(pat_list,k=len_pat_list) instead to generate a new list?
-    random.shuffle(pat_list)
-    return pat_list[:train_nb], pat_list[train_nb : train_nb + valid_nb], pat_list[train_nb + valid_nb :]
+    patients = sorted(pat_list)
+    random.Random(seed).shuffle(patients)
+    return patients[:train_nb], patients[train_nb : train_nb + valid_nb], patients[train_nb + valid_nb :]

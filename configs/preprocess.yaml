@@ -5,6 +5,7 @@ defaults:
 data_dir: ???
 split: [0.7, 0.2, 0.1]   # portions of patients used for training, validation and testing
 overwrite: false         # replace an existing split file
+seed: 0                  # the split only depends on it; null for a random split
 
 hydra:
   run:

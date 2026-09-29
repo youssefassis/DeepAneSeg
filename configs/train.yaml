@@ -17,6 +17,8 @@ batch_size: 20
 validation_batch_size: 40
 num_workers: 4
 weight_init: keras   # keras (Xavier uniform) or pytorch (PyTorch defaults)
+seed: 0              # seeds Python, NumPy and PyTorch; null for a different run each time
+deterministic: false # deterministic cuDNN algorithms, for identical GPU runs (slower)
 
 hydra:
   run:
