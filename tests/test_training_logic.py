@@ -1,4 +1,5 @@
 """Regression tests for bugs that silently changed training or sampling behaviour."""
+
 import numpy as np
 import pytest
 import torch

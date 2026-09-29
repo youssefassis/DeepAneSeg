@@ -4,61 +4,65 @@ import scipy.optimize as sopt
 import deepaneseg.volume.edition as ved
 import deepaneseg.data.io as dio
 
+
 def inv_trans_point(p, center, size, affine=None, disp=None, order=3):
-    '''
+    """
     apply the inverse of the transform defined by first applying
     a non rigid deformation (grid deformation defined by disp)
     followed by an affine deformation (given by 4x4 matrix affine)
     points p as input should have the shape (3,-1)
     input points p are left unchanged, and the transformed points
     are returned
-    '''
-    x=p.copy()
+    """
+    x = p.copy()
     # apply affine transform
     if not affine is None:
-        D=np.linalg.inv(affine)
-        x =(D[:3,:]@np.vstack((x,np.ones(x.shape[1]))))
+        D = np.linalg.inv(affine)
+        x = D[:3, :] @ np.vstack((x, np.ones(x.shape[1])))
 
     # then apply inverse of deformation
     if not disp is None:
-        center=np.asarray(center)
-        size=np.asarray(size)
+        center = np.asarray(center)
+        size = np.asarray(size)
         # determine abscissa relative to the cube
-        min_corner=(center-size/2).reshape((3,1))
-        res=((np.asarray(disp[0].shape)-1)/size).reshape((3,1))
-        c=(x-min_corner) * res
+        min_corner = (center - size / 2).reshape((3, 1))
+        res = ((np.asarray(disp[0].shape) - 1) / size).reshape((3, 1))
+        c = (x - min_corner) * res
         # compute non-rigid displacement
-        x[0] -= sndi.map_coordinates(disp[0],c,order=order,mode='nearest').ravel()
-        x[1] -= sndi.map_coordinates(disp[1],c,order=order,mode='nearest').ravel()
-        x[2] -= sndi.map_coordinates(disp[2],c,order=order,mode='nearest').ravel()
+        x[0] -= sndi.map_coordinates(disp[0], c, order=order, mode="nearest").ravel()
+        x[1] -= sndi.map_coordinates(disp[1], c, order=order, mode="nearest").ravel()
+        x[2] -= sndi.map_coordinates(disp[2], c, order=order, mode="nearest").ravel()
     return x
 
-def _euclidean_dist(x,*args):
-    p=args[0]
-    center=args[1]
-    size=args[2]
-    affine=args[3]
-    disp=args[4]
-    q=inv_trans_point(x.reshape((3,-1)),center,size,affine,disp)
-    d=p-q.ravel()
-    return np.sum(d*d)
 
-def trans_point(p,center,size,affine=None,disp=None):
-    '''
+def _euclidean_dist(x, *args):
+    p = args[0]
+    center = args[1]
+    size = args[2]
+    affine = args[3]
+    disp = args[4]
+    q = inv_trans_point(x.reshape((3, -1)), center, size, affine, disp)
+    d = p - q.ravel()
+    return np.sum(d * d)
+
+
+def trans_point(p, center, size, affine=None, disp=None):
+    """
     apply the composite transform (see inv_trans_point) to a set of points
     p stored in an 3xN array
-    '''
-    x=p.copy()
+    """
+    x = p.copy()
     if not disp is None:
-        ores=sopt.minimize(_euclidean_dist,x.ravel(),method='CG',args=(p.ravel(),center,size,affine,disp))
-        x=ores.x.reshape((3,-1))
+        ores = sopt.minimize(_euclidean_dist, x.ravel(), method="CG", args=(p.ravel(), center, size, affine, disp))
+        x = ores.x.reshape((3, -1))
     elif not affine is None:
-        x=affine[:3,:]@np.vstack((x,np.ones(x.shape[1])))
+        x = affine[:3, :] @ np.vstack((x, np.ones(x.shape[1])))
     return x
 
-def get_patch(vol,vox2met,center,size,dim,affine=None,disp=None):
-    '''
-    Extract a 3D patch from a volume (vol) with faces parallel to some metric (in mm, e.g. RAS) frame coordinate directions. 
+
+def get_patch(vol, vox2met, center, size, dim, affine=None, disp=None):
+    """
+    Extract a 3D patch from a volume (vol) with faces parallel to some metric (in mm, e.g. RAS) frame coordinate directions.
     vox2met is the 4x4 affine transformation between voxel and metric coordinates (a.k.a. IJKtoRAS transform)
     center (3-vector) is the center (in mm) of the patch to extract
     size (scalar or 3-vector) is size in mm of the patch to extract
@@ -67,7 +71,7 @@ def get_patch(vol,vox2met,center,size,dim,affine=None,disp=None):
     affine is a 4X4 transform matrix to apply in the metric coordinate frame
         as a affine perturbation
     disp is 3-tuple of (x,y,z) displacements defining a spline transform
-        the corners of the disp elements match those of the patch (e.g. 
+        the corners of the disp elements match those of the patch (e.g.
         disp[:][0,0,0] provides the displacement to apply to patch[0,0,0]
         and disp[:][dd0-1,dd1-1,dd2-1] gives the displacement to apply to
         patch[dp0-1,dp1-1,dp2-1], assuming that dd is the dimension of the disp cube
@@ -75,40 +79,42 @@ def get_patch(vol,vox2met,center,size,dim,affine=None,disp=None):
         if performed on the displacements
     Returns the patch values, as well as the associated vox2met transform, without taking into account the possible
         affine transformation and distortion
-    '''
+    """
     if np.isscalar(dim):
-        dim=dim*np.ones(3, dtype=np.uint32)
+        dim = dim * np.ones(3, dtype=np.uint32)
     if np.isscalar(size):
-        size=size*np.ones(3, dtype=np.float32)
-    center=np.asarray(center)
-    dim=np.asarray(dim)
-    size=np.asarray(size)
+        size = size * np.ones(3, dtype=np.float32)
+    center = np.asarray(center)
+    dim = np.asarray(dim)
+    size = np.asarray(size)
 
-    #compute new vox2met transform associated with patch
-    res = size/dim
+    # compute new vox2met transform associated with patch
+    res = size / dim
     trans_patch = np.eye(4)
-    trans_patch[:3,:3] = np.diag(res) # the patch axes are parallel to the metric space axes
-    trans_patch[:3,3] = center - size/2 +res/2
+    trans_patch[:3, :3] = np.diag(res)  # the patch axes are parallel to the metric space axes
+    trans_patch[:3, 3] = center - size / 2 + res / 2
 
     # RAS coordinates of voxels in the patch
     #   voxel coordinates (wrt patch), in homogeneous space
-    p=np.vstack((np.mgrid[0:dim[0],0:dim[1],0:dim[2]].reshape((3,-1)),np.ones(np.prod(dim))))
+    p = np.vstack((np.mgrid[0 : dim[0], 0 : dim[1], 0 : dim[2]].reshape((3, -1)), np.ones(np.prod(dim))))
     #   express the points in metric coordinates
-    p=trans_patch@p
+    p = trans_patch @ p
     # apply inverse transform
-    p[:3]=inv_trans_point(p[:3],center, size, affine, disp)
+    p[:3] = inv_trans_point(p[:3], center, size, affine, disp)
 
     # go back to voxel coordinates in the original volume
-    D=np.linalg.inv(vox2met)
-    c=(D@p)[:3]
+    D = np.linalg.inv(vox2met)
+    c = (D @ p)[:3]
 
     # note: could avoid computations by avoiding multiple transforms
     b = sndi.map_coordinates(vol, c, order=1).reshape(dim)
     return b, trans_patch
 
 
-def get_patch_and_truth(vol,vox2met,center,size,dim,aneurysms,affine=None,disp=None, flip=False, noise=False, vessel=None):
-    '''
+def get_patch_and_truth(
+    vol, vox2met, center, size, dim, aneurysms, affine=None, disp=None, flip=False, noise=False, vessel=None
+):
+    """
     Extract a patch and compute the corresponding ground truth volume.
     vol,vox2met,center,size,dim,affine,disp: see get_patch
     aneurysms: a 2N*3 array of points, one pair for each aneurysm
@@ -118,21 +124,21 @@ def get_patch_and_truth(vol,vox2met,center,size,dim,aneurysms,affine=None,disp=N
         - t: the corresponding ground truth volume
         - v2m: the vox2met transform for the patch
     flip and noise are currently ignored: mirroring and noise augmentation are disabled.
-    '''
-    v,v2m = get_patch(vol,vox2met,center,size,dim,affine,disp)
+    """
+    v, v2m = get_patch(vol, vox2met, center, size, dim, affine, disp)
     if vessel is not None:
         vessel, _ = get_patch(vessel, vox2met, center, size, dim, affine, disp)
     # generate corresponding truth volume
-    t=v.copy()
+    t = v.copy()
     t.fill(0)
     if aneurysms is not None:
         #   apply transform to aneurysms points. Need for transpose since
         #   points are stored in (-1,3) array
-        a=trans_point(aneurysms.T, center, size, affine=affine, disp=disp).T
+        a = trans_point(aneurysms.T, center, size, affine=affine, disp=disp).T
         #   compute centers and radii
-        s=dio.points_to_spheres(a)
+        s = dio.points_to_spheres(a)
         #   burn spheres
         for ts in s:
-            ved.draw_sphere(t,v2m,ts[:3],ts[3],val=1)
+            ved.draw_sphere(t, v2m, ts[:3], ts[3], val=1)
 
     return v, t, vessel, v2m

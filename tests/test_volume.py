@@ -46,7 +46,7 @@ def test_get_patch_without_transform_samples_the_volume():
     patch, patch_vox2met = get_patch(vol, ISOTROPIC_HALF_MM, center, size=4.5, dim=9)
 
     start = 16  # first patch voxel center: 10 - 4.5/2 + 0.25 = 8 mm, i.e. volume voxel 16
-    np.testing.assert_allclose(patch, vol[start:start + 9, start:start + 9, start:start + 9], atol=1e-12)
+    np.testing.assert_allclose(patch, vol[start : start + 9, start : start + 9, start : start + 9], atol=1e-12)
     np.testing.assert_allclose(np.diag(patch_vox2met)[:3], 0.5)
 
 
