@@ -70,6 +70,10 @@ python3 scripts/train.py Data_dir/0Work/my_training
 python3 scripts/predict.py Data_dir/0Work/my_training
 ```
 
+# Differences from the published code
+The Kappa metric/loss follows Cohen's definition and the focal loss is computed per voxel (Lin et al.), so
+trainings using them can give numbers that differ slightly from the published ones.
+
 # Installation
 Requires Python 3.10+. Install the `deepaneseg` package and its dependencies from the repository root:
 ```
