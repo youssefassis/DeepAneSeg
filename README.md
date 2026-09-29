@@ -19,10 +19,12 @@ The code is organised as a Python package, `deepaneseg`, plus command-line scrip
 deepaneseg/
   data/       patient data I/O, train/valid/test splits, augmentation transforms
   volume/     patch extraction, sphere burning, point selection, skull stripping
-  models/     3D U-Net (and experimental variants)
+  models/     3D U-Net
   training/   dataset, losses, metrics, trainer
   inference/  patch-wise prediction and ADAM-style evaluation
+  experimental/  post-paper models (vessel-coupled U-Nets) and their trainer, unmaintained
 scripts/      pipeline steps (see Usage)
+  experimental/  ad hoc analysis scripts with hardcoded paths, unmaintained
 ```
 
 The data is expected in the following layout:
