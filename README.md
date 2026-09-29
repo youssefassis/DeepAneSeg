@@ -52,8 +52,8 @@ Settings are [Hydra](https://hydra.cc) configs in `configs/`: one file per scrip
 `preprocess.yaml`, `remove_skull.yaml`, `extract_points.yaml`) composed from groups (`data`, `model`, `optimizer`,
 `scheduler`, `augmentation`). Any value can be overridden on the command line:
 ```
-python3 scripts/train.py data_dir=Data_dir name=my_training batch_size=8 optimizer.lr=3e-4 model.f_maps=32
-python3 scripts/train.py --cfg job --resolve data_dir=Data_dir name=my_training   # print the config
+uv run python scripts/train.py data_dir=Data_dir name=my_training batch_size=8 optimizer.lr=3e-4 model.f_maps=32
+uv run python scripts/train.py --cfg job --resolve data_dir=Data_dir name=my_training   # print the config
 ```
 To add an alternative (for example another scheduler), add a file to the group, such as
 `configs/scheduler/step.yaml` with a `_target_` class, and select it with `scheduler=step`.
@@ -63,23 +63,23 @@ Run every command from the repository root.
 
 **1. Data preparation:** skull-strip the volumes, then select the negative patch centers.
 ```
-python3 scripts/remove_skull.py data_dir=Data_dir
-python3 scripts/extract_points.py data_dir=Data_dir
+uv run python scripts/remove_skull.py data_dir=Data_dir
+uv run python scripts/extract_points.py data_dir=Data_dir
 ```
 
 **2. Split:** assign the patients to training, validation and testing.
 ```
-python3 scripts/preprocess_data.py data_dir=Data_dir          # split=[0.7,0.2,0.1] overwrite=true
+uv run python scripts/preprocess_data.py data_dir=Data_dir          # split=[0.7,0.2,0.1] overwrite=true
 ```
 
 **3. Training:** outputs go to `Data_dir/0Work/my_training`; running the same command again resumes training.
 ```
-python3 scripts/train.py data_dir=Data_dir name=my_training
+uv run python scripts/train.py data_dir=Data_dir name=my_training
 ```
 
 **4. Testing:** predictions are written to `Data_dir/0Work/my_training/prediction/test`.
 ```
-python3 scripts/predict.py train_dir=Data_dir/0Work/my_training
+uv run python scripts/predict.py train_dir=Data_dir/0Work/my_training
 ```
 
 # Differences from the published code
@@ -87,12 +87,13 @@ The Kappa metric/loss follows Cohen's definition and the focal loss is computed 
 trainings using them can give numbers that differ slightly from the published ones.
 
 # Installation
-Requires Python 3.10+. Install the `deepaneseg` package and its dependencies from the repository root:
+The project uses [uv](https://docs.astral.sh/uv/) (Python 3.10+). From the repository root, pick the PyTorch build:
 ```
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e .            # add ".[dev]" for pytest and ruff
+uv sync --extra cu126    # NVIDIA GPU (CUDA 12.6)
+uv sync --extra cpu      # CPU only (also the build used on macOS)
 ```
-A CUDA-enabled PyTorch build is recommended for training; see [pytorch.org](https://pytorch.org/get-started/locally/) for the right install command for your GPU.
+This creates `.venv` with the exact versions of `uv.lock`, including pytest and ruff. Commands then run with
+`uv run`, e.g. `uv run pytest`. Without uv, `pip install -e .` also works (PyTorch's default PyPI build).
 
 # Citation
 If you find this repository useful in your research, please consider citing:

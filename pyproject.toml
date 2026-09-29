@@ -25,7 +25,31 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# PyTorch build, for uv: `uv sync --extra cpu` or `uv sync --extra cu126` (see [tool.uv.sources])
+cpu = ["torch"]
+cu126 = ["torch"]
+
+[dependency-groups]
 dev = ["pytest", "ruff"]
+
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "cu126" }]]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu126", extra = "cu126" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
 
 [tool.setuptools.packages.find]
 include = ["deepaneseg*"]
