@@ -35,11 +35,12 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 120
+extend-exclude = ["notebooks"]
 
 [tool.ruff.lint]
-# Tightened step by step as the existing code is fixed.
-select = ["E9", "F811", "F821"]
+select = ["E9", "F"]
 
 [tool.ruff.lint.per-file-ignores]
-# still references TensorFlow from an earlier port; kept until its fate is decided
-"scripts/evaluate.py" = ["F821"]
+# still references TensorFlow from an earlier port and computes metrics it never reports;
+# kept until its fate is decided
+"scripts/evaluate.py" = ["F821", "F841"]

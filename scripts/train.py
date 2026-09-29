@@ -2,7 +2,6 @@
 
 import sys, os, json
 import torch
-from torch import optim
 
 from deepaneseg.data.io import add_points_to_patient_data, read_split, read_patient_data_base
 from deepaneseg.utils import create_optimizer, create_lr_scheduler, get_model

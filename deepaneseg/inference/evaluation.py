@@ -56,7 +56,7 @@ def confusion_matrix(pred,vox2met,spheres, min_size=None, tp_proportion=0.3):
 
     # analysis: check if each CC in truth intersects with at most 1 CC in prediction
     if np.max(np.sum(np.where(hist_cross>0,1,0), axis=0))>1:
-        print(f'Problem: 2 PCC intersect a single GTS')
+        print('Problem: 2 PCC intersect a single GTS')
 
     # compute statistics
     # boolean array: h(i,j) is True iff PCC#i and GTS#j intersect as a TP

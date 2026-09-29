@@ -6,7 +6,7 @@ import json
 import deepaneseg.data.io as dio
 import torch
 
-from deepaneseg.utils import get_logger, load_model, get_number_of_learnable_parameters
+from deepaneseg.utils import get_logger, load_model
 from deepaneseg.inference.prediction import ndl_run_validation_cases
 
 def main():

@@ -1,7 +1,6 @@
 import torch
 from deepaneseg.utils import get_logger
 
-#logger = get_logger('EvalMetric')
 logger = get_logger('Model Configuration')
 
 

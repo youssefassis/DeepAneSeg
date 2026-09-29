@@ -1,7 +1,6 @@
 import numpy as np
 import os
 import nibabel as ni
-import string
 import pandas as pd
 import json, glob
 
@@ -9,10 +8,6 @@ from deepaneseg.volume.selection import select_points
 from deepaneseg.utils import get_logger
 
 logger = get_logger("Data Preparation")
-# the chosen file format is python pickle dump of a dict. This might not be the wisest choice, but 
-# hdf5 format is not reentrant, so that you cannot leverage threads to train model (seg fault)
-# csv might be nice, but I am not convinced that tables are appropriate to store our data
-# sql could be a very nice option... to consider when I have the time
 
 # the data
 # for each patient, we have:
@@ -213,7 +208,7 @@ def extract_points_from_patient(patient, r=20, nb_points=100, outfile="points.cs
 	with open("config.json", 'r') as f:
 		d = json.load(f)
 	vol, vox2met = read_nii_from_file(d['noskull volume'])
-	print(f'Extracting points')
+	print('Extracting points')
 	forbidden_points = read_points_from_csv(d['pts aneurysm'])
 	fp = points_to_spheres(forbidden_points)[:,:-1] # drop radii
 	q = None
@@ -236,7 +231,6 @@ def extract_points_from_patient(patient, r=20, nb_points=100, outfile="points.cs
 		print(f'{len(q)} tParenchyma points')
 
 	# export to csv using pandas
-	#print(f'Exporting to CSV')
 	ps = pd.DataFrame(p, columns=list('xyz'))
 	ps['type'] = pd.Categorical([title] * len(p))
 	if q is not None:
@@ -253,5 +247,4 @@ def extract_points(data_path, r = 20, nb_points=100, outfile="points.csv", rando
     for patient in patients:
         extract_points_from_patient(patient, r=r, nb_points=nb_points, outfile=outfile, random_points=random_points)
 
-#extract_points("/srv/storage/tangram@talc-data2.nancy.grid5000.fr/yassis/Data/", r=20, nb_points=200, outfile="RandomPoints.csv", random_points=True)
 

@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 import torch
 
-from deepaneseg.training.trainer import Trainer, create_trainer
+from deepaneseg.training.trainer import create_trainer
 from deepaneseg.utils import create_optimizer
 from deepaneseg.volume.selection import points_in_radius, select_points
 
@@ -67,3 +67,11 @@ def test_training_stops_after_early_stop_epochs_without_improvement(trainer_conf
         trainer._save_best("valid", score)
 
     assert trainer.should_stop(train=False)
+
+
+def test_log_stats_writes_tensorboard_scalars(trainer_config, tmp_path):
+    trainer = make_trainer(trainer_config)
+
+    trainer._log_stats("train", loss_avg=0.5, dice_avg=0.7, step=0)
+
+    assert any((tmp_path / "logs").rglob("events.out.tfevents.*"))

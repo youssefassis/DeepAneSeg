@@ -102,32 +102,10 @@ class RunningAverage:
         self.avg = self.sum / self.count
 
 
-def find_maximum_patch_size(model, device):
-    """Tries to find the biggest patch size that can be send to GPU for inference
-    without throwing CUDA out of memory"""
-    logger = get_logger('PatchFinder')
-    in_channels = model.in_channels
-
-    patch_shapes = [(64, 128, 128), (96, 128, 128),
-                    (64, 160, 160), (96, 160, 160),
-                    (64, 192, 192), (96, 192, 192)]
-
-    for shape in patch_shapes:
-        # generate random patch of a given size
-        patch = np.random.randn(*shape).astype('float32')
-
-        patch = torch \
-            .from_numpy(patch) \
-            .view((1, in_channels) + patch.shape) \
-            .to(device)
-
-        logger.info(f"Current patch size: {shape}")
-        model(patch)
-
 logger = get_logger('Model Configuration')
 def create_optimizer(model, learning_rate=1e-4, betas=(0.9, 0.999), eps=1e-7, weight_decay=0):
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=betas, eps=eps, weight_decay=weight_decay)
-    logger.info (f'Adam Optimizer')
+    logger.info ('Adam Optimizer')
     return optimizer
 
 def create_lr_scheduler(optimizer, config):
@@ -163,7 +141,7 @@ def get_model(config, default_init=None, device='cpu'):
         raise ValueError(f"Unsupported model '{config['model']}', expected one of {sorted(models)}")
     model = models[config["model"]]()
 
-    
+
     logger.info(f"The model '{config['model']}' was chosen to be trained")
     nparams = get_number_of_learnable_parameters(model)
     mem_params = sum([param.nelement()*param.element_size() for param in model.parameters()])
@@ -245,10 +223,7 @@ class GradualWarmupScheduler(_LRScheduler):
             for param_group, lr in zip(self.optimizer.param_groups, warmup_lr):
                 param_group['lr'] = lr
         else:
-#            if epoch is None:
             self.after_scheduler.step(metrics) #, None)
-#            else:
-#                self.after_scheduler.step(metrics, epoch - self.total_epoch)
 
     def step(self, epoch=None, metrics=None):
         if type(self.after_scheduler) != ReduceLROnPlateau:
