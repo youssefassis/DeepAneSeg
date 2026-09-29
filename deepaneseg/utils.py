@@ -4,7 +4,8 @@ import numpy as np
 import torch
 from torch import optim
 
-from deepaneseg.models.models import UNet3D, Proposition1, Proposition2, Proposition3
+from deepaneseg.experimental.models import Proposition1, Proposition2, Proposition3
+from deepaneseg.models.models import UNet3D
 
 
 def save_checkpoint(state, is_best, checkpoint_dir, logger=None):

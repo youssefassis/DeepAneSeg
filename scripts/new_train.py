@@ -37,7 +37,7 @@ def main():
     config["metrics"] = "Kappa"  # metrics
 
     config["model"] = (
-        "unet3d"  # see utils.get_model for supported models: {unet3d, Proposition1, Proposition2, Proposition3}
+        "unet3d"  # see utils.get_model: unet3d (paper) or the experimental Proposition1, Proposition2, Proposition3
     )
     config["layer_order"] = "cbr"
 
