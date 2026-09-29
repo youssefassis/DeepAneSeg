@@ -253,8 +253,7 @@ def extract_points_from_patient(patient, r=20, nb_points=100, outfile="points.cs
         d = json.load(f)
     vol, vox2met = read_nii_from_file(os.path.join(patient, d["noskull volume"]))
     print("Extracting points")
-    forbidden_points = read_points_from_csv(os.path.join(patient, d["pts aneurysm"]))
-    fp = points_to_spheres(forbidden_points)[:, :-1]  # drop radii
+    fp = read_aneurysm_spheres(patient)[:, :3]  # aneurysm centers, none for a patient without aneurysm
     q = None
     if random_points:
         min_threshold, max_threshold = np.percentile(vol[vol > 0], 0), np.percentile(vol[vol > 0], 100)
