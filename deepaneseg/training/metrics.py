@@ -5,7 +5,6 @@ from deepaneseg.utils import get_logger
 logger = get_logger('Model Configuration')
 
 
-@torch.no_grad()
 class DiceCoefficient:
     """Computes Dice Coefficient.
     Generalized to multiple channels by computing per-channel Dice Score
@@ -17,16 +16,17 @@ class DiceCoefficient:
     def __init__(self, **kwargs):
         logger.info("DiceCoefficient metric is used")
 
+    @torch.no_grad()
     def __call__(self, inputs, targets, smooth=1e-8):
         intersection = (inputs * targets).sum()
         dice = (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)
         return dice
 
-@torch.no_grad()
 class IoUCoefficient:
     def __init__(self, **kwargs):
         logger.info("IoUCoefficient metric is used")
 
+    @torch.no_grad()
     def __call__(self, inputs, targets, smooth=1e-8):
         """
         Computes and return IoU for a given inputs and targets tensors
@@ -35,7 +35,6 @@ class IoUCoefficient:
         iou = (intersection + smooth)/(inputs.sum() + targets.sum() - intersection + smooth)
         return iou
 
-@torch.no_grad()
 class Kappa:
     """
     Computes Kappa score
@@ -43,6 +42,7 @@ class Kappa:
     def __init__(self):
         logger.info("Cohen's Kappa metric is used")
 
+    @torch.no_grad()
     def __call__(self, inputs, targets, smooth=1e-8):
         N = torch.numel(inputs)
         numerator = 2 * (inputs * targets).sum() - (targets.sum() * inputs.sum()) / N
@@ -64,7 +64,6 @@ def cm(y, t): #, num_classes=1):
     tn = ((y==0) & (t==0)).sum()
     return tp, fp, fn, tn
 
-@torch.no_grad()
 class Tversky:
     """
     Computes Tversky loss
@@ -72,6 +71,7 @@ class Tversky:
     def __init__(self, **kwargs):
         logger.info("Tversky metric is used")
         pass
+    @torch.no_grad()
     def __call__(self, inputs, targets, alpha=0.7, beta=0.5, smooth=1):
         #flatten label and prediction tensors
         inputs = inputs.view(-1)
