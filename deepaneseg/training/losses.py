@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn as nn
 from deepaneseg.utils import get_logger
+from deepaneseg.training.metrics import cohen_kappa
 
 logger = get_logger("Model Configuration")
 
@@ -89,19 +90,24 @@ class IoULoss(nn.Module):
 
 
 class FocalLoss(nn.Module):
-    def __init__(self):
+    """
+    Binary focal loss (Lin et al., 2017) on probabilities: mean of alpha_t * (1 - p_t)**gamma * BCE over voxels,
+    where alpha weights the positive class and 1 - alpha the negative one.
+    """
+
+    def __init__(self, alpha=0.8, gamma=2):
         super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
         logger.info("Focal Loss is used")
 
-    def forward(self, inputs, targets, alpha=0.8, gamma=2):
-        # flatten label and prediction tensors
+    def forward(self, inputs, targets):
         inputs = inputs.view(-1)
         targets = targets.view(-1)
-        # first compute binary cross-entropy
-        BCE = F.binary_cross_entropy(inputs, targets, reduction="mean")
-        bce_exp = torch.exp(-BCE)
-        focal_loss = alpha * (1 - bce_exp) ** gamma * BCE
-        return focal_loss
+        bce = F.binary_cross_entropy(inputs, targets, reduction="none")
+        p_t = torch.exp(-bce)  # probability given to the true class
+        alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
+        return (alpha_t * (1 - p_t) ** self.gamma * bce).mean()
 
 
 class TverskyLoss(nn.Module):
@@ -144,16 +150,14 @@ class FocalTverskyLoss(nn.Module):
 
 
 class KappaLoss(nn.Module):
+    """1 - Cohen's kappa, see metrics.cohen_kappa"""
+
     def __init__(self):
         super(KappaLoss, self).__init__()
         logger.info("Kappa Loss is used")
 
     def forward(self, inputs, targets):
-        N = torch.numel(inputs)
-        numerator = 2 * (inputs * targets).sum() - (targets.sum() * inputs.sum()) / N
-        disc = targets.sum() + inputs.sum() - 2 * (inputs * targets).sum() / N
-        kappa = numerator / disc
-        return 1 - kappa
+        return 1 - cohen_kappa(inputs, targets)
 
 
 #######################################################################################################################
