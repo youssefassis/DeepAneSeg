@@ -7,4 +7,4 @@ before use:
 - `evaluate_perf.py`: voxel-, patch- and aneurysm-wise metrics on predictions (older variant of `eval.py`).
 - `evaluate.py`: patch-wise evaluation from an earlier TensorFlow version; needs porting to PyTorch before use.
 
-The ADAM evaluation logic itself lives in `deepaneseg/inference/evaluation.py`.
+`scripts/evaluate.py` computes the ADAM metrics from the training configuration, without editing.
