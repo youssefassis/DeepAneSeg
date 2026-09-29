@@ -1,0 +1,41 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the paper below."
+title: "DeepAneSeg: an efficient data strategy for the detection of brain aneurysms from MRA with deep learning"
+type: software
+authors:
+  - family-names: Assis
+    given-names: Youssef
+repository-code: "https://github.com/youssefassis/DeepAneSeg"
+keywords:
+  - intracranial aneurysm
+  - magnetic resonance angiography
+  - deep learning
+  - 3D U-Net
+preferred-citation:
+  type: conference-paper
+  title: "An Efficient Data Strategy for the Detection of Brain Aneurysms from MRA with Deep Learning"
+  authors:
+    - family-names: Assis
+      given-names: Youssef
+    - family-names: Liao
+      given-names: Liang
+    - family-names: Pierre
+      given-names: Fabien
+    - family-names: Anxionnat
+      given-names: René
+    - family-names: Kerrien
+      given-names: Erwan
+  collection-title: >-
+    Deep Generative Models, and Data Augmentation, Labelling, and Imperfections: First Workshop, DGM4MICCAI 2021,
+    and First Workshop, DALI 2021, Held in Conjunction with MICCAI 2021
+  conference:
+    name: "DALI 2021, held in conjunction with MICCAI 2021"
+    city: Strasbourg
+    country: FR
+  publisher:
+    name: Springer
+  year: 2021
+  start: 226
+  end: 234
+  doi: "10.1007/978-3-030-88210-5_22"
+  url: "https://link.springer.com/chapter/10.1007/978-3-030-88210-5_22"
