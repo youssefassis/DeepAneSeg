@@ -1,8 +1,10 @@
 import os
 import math
 
-import nibabel as nib
 import numpy as np
+import pandas as pd
+import skimage.measure as skme
+import skimage.morphology as skmo
 import SimpleITK as sitk
 from tqdm import tqdm
 
@@ -88,57 +90,72 @@ def patch_wise_prediction(device, model, data, patch_shape, margin=0, batch_size
     return output[tuple(slice(0, n) for n in image_shape)]
 
 
-def predict_patient(pat_dict, device, model, patch_size, patch_shape, output_dir, margin=0, batch_size=1):
+@torch.no_grad()
+def predict_volume(data, affine, device, model, patch_size, patch_shape, margin=0, batch_size=1, name=""):
     """
-    Predicts one patient and writes the (sigmoid) prediction, on the patient's voxel grid, to
-    <output_dir>/<patient>.nii.gz.
-    :param pat_dict: patient data, as returned by data.io.read_patient_data_base (including the 'dir' key)
+    Predicts a (normalized) volume and returns the (sigmoid) prediction on the volume's own voxel grid.
     :param patch_size: size in mm of a patch, and patch_shape its size in voxels (as used for training)
     """
-    os.makedirs(output_dir, exist_ok=True)
-    name = os.path.basename(pat_dict["dir"])
-    affine, data = pat_dict["affine"], pat_dict["data"]
-    print(f"Processing {name}")
-
     spacing = np.linalg.norm(affine[:3, :3], axis=0)
     work_spacing = np.asarray(patch_size, float) / np.asarray(patch_shape)
     work = resample_to_spacing(data, spacing, work_spacing)
     prediction = patch_wise_prediction(
         device, model, work, patch_shape, margin=margin, batch_size=batch_size, patient_name=name
     )
-    prediction = resample_to_grid(prediction, work_spacing, data.shape, spacing)
-
-    nib.Nifti1Image(prediction, affine).to_filename(os.path.join(output_dir, name + ".nii.gz"))
+    return resample_to_grid(prediction, work_spacing, data.shape, spacing)
 
 
-@torch.no_grad()
-def predict_patients(pat_db, device, model, patch_size, patch_shape, output_dir=".", margin=0, batch_size=1):
-    for p in pat_db:
-        predict_patient(p, device, model, patch_size, patch_shape, output_dir, margin=margin, batch_size=batch_size)
+def find_detections(prediction, affine, threshold=0.5, min_size=None):
+    """
+    Connected components of the prediction above threshold, as a DataFrame with one row per detection:
+    center (x, y, z) and radius (half the largest extent) in mm, size in voxels and maximum probability.
+    min_size: components smaller than this, in voxels, are ignored
+    """
+    labels = skme.label(prediction >= threshold)
+    if min_size is not None:
+        labels = skme.label(skmo.remove_small_objects(labels, min_size=min_size))
+    rows = []
+    for region in skme.regionprops(labels, intensity_image=prediction):
+        points = region.coords @ affine[:3, :3].T + affine[:3, 3]
+        x, y, z = points.mean(axis=0)
+        radius = np.max(points.max(axis=0) - points.min(axis=0)) / 2
+        rows.append(
+            {"x": x, "y": y, "z": z, "radius": radius, "voxels": int(region.area), "probability": region.intensity_max}
+        )
+    return pd.DataFrame(rows, columns=["x", "y", "z", "radius", "voxels", "probability"])
+
+
+def save_detections(detections, csv_path):
+    """Writes the detections to csv_path and, for 3D Slicer, as markups to the matching .fcsv file."""
+    detections.assign(type="Detection").to_csv(csv_path)
+    dio.csv2fcsv(csv_path)
 
 
 @torch.no_grad()
 def get_patient_prediction(
-    pat_path, device, model, patch_size, patch_shape=(48, 48, 48), margin=8, batch_size=10, normalization="Normal"
+    pat_path,
+    device,
+    model,
+    patch_size,
+    patch_shape=(48, 48, 48),
+    margin=8,
+    batch_size=10,
+    normalization="Normal",
 ):
     """Predicts one patient directory; returns the prediction (on the patient's grid), its affine and the
     ground-truth aneurysm spheres."""
     pat_dict = dio.read_patient_data_base([pat_path], volume="init volume", normalize=normalization)[0]
-    affine, data = pat_dict["affine"], pat_dict["data"]
-
-    spacing = np.linalg.norm(affine[:3, :3], axis=0)
-    work_spacing = np.asarray(patch_size, float) / np.asarray(patch_shape)
-    work = resample_to_spacing(data, spacing, work_spacing)
-    prediction = patch_wise_prediction(
+    affine = pat_dict["affine"]
+    prediction = predict_volume(
+        pat_dict["data"],
+        affine,
         device,
         model,
-        work,
+        patch_size,
         patch_shape,
-        margin=margin,
-        batch_size=batch_size,
-        patient_name=os.path.basename(pat_dict["dir"]),
+        margin,
+        batch_size,
+        name=os.path.basename(pat_dict["dir"]),
     )
-    prediction = resample_to_grid(prediction, work_spacing, data.shape, spacing)
-
     spheres = dio.points_to_spheres(pat_dict["aneurysms"])
     return prediction, affine, spheres
