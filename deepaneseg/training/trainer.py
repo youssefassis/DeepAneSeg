@@ -33,7 +33,8 @@ def create_trainer(config, device, model, optimizer, lr_scheduler, loss_criterio
                                        checkpoint_dir = config["test_dir"],
                                        model_path = model_path,
                                        max_num_epochs = config["n_epochs"],
-                                       max_iterations=max_iterations
+                                       max_iterations=max_iterations,
+                                       earlystop=config.get("early_stop", 100)
                                        )
     else:
         logger.info("Training the model from scratch")
@@ -48,12 +49,13 @@ def create_trainer(config, device, model, optimizer, lr_scheduler, loss_criterio
                              model_path = model_path,
                              max_num_epochs=config["n_epochs"],
                              max_iterations=max_iterations,
+                             earlystop=config.get("early_stop", 100),
                              config = config)
 
 class Trainer:
     def __init__(self, model, optimizer, lr_scheduler, loss_criterion, eval_criterion, device, loaders, checkpoint_dir, model_path,
                  max_num_epochs=100, num_epoch=0, num_iterations=0, eval_score_higher_is_better=True, best_eval_score=None,
-                 max_iterations=0, monitor="valid", earlystop=10, nonimproved_epoch=0, config=None, **kwargs):
+                 max_iterations=0, monitor="valid", earlystop=100, nonimproved_epoch=0, config=None, **kwargs):
 
         self.model = model
         self.optimizer = optimizer
@@ -70,7 +72,7 @@ class Trainer:
         self.num_epoch = num_epoch
         self.monitor = monitor
         self.nonimproved_epoch = 0 #nonimproved_epoch
-        self.earlystop = 100 #earlystop
+        self.earlystop = earlystop
 
         if best_eval_score is not None:
             self.best_eval_score = best_eval_score
@@ -83,7 +85,7 @@ class Trainer:
 
     @classmethod
     def from_checkpoint(cls, model, optimizer, lr_scheduler, loss_criterion, eval_criterion, device, loaders, checkpoint_dir,
-                                       model_path, max_num_epochs=0, max_iterations=0, **kwargs):
+                                       model_path, max_num_epochs=0, max_iterations=0, earlystop=100, **kwargs):
 
         state = load_checkpoint(model_path, model, optimizer)
         logger.info( f"Checkpoint loaded. Epoch: {state['epoch']}; Best metric score: {state['best_eval_score']}")
@@ -91,7 +93,7 @@ class Trainer:
         return cls(model, optimizer, lr_scheduler, loss_criterion, eval_criterion, device,
                    loaders, checkpoint_dir, model_path,  eval_score_higher_is_better=state['eval_score_higher_is_better'],
                    best_eval_score=state['best_eval_score'], num_epoch=state['epoch'], max_num_epochs=max_num_epochs,
-                   max_iterations=max_iterations)
+                   max_iterations=max_iterations, earlystop=earlystop)
 
     def fit(self, sanity_check=False, deep_supervision=False):
         torch.backends.cudnn.benchmark = True
@@ -193,6 +195,8 @@ class Trainer:
             is_best = self._is_best_eval_score(score)
             if not is_best:
                 self.nonimproved_epoch += 1
+            else:
+                self.nonimproved_epoch = 0
             # save checkpoint
             return self._save_checkpoint(is_best)
         return False
