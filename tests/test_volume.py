@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from deepaneseg.data.generators import generate_transforms
 from deepaneseg.data.io import points_to_spheres
@@ -73,3 +74,17 @@ def test_generate_transforms_keeps_patch_center_fixed_under_distortion():
     assert affine is None
     assert all(d.shape == (3, 3, 3) and d[1, 1, 1] == 0 for d in disp)
     assert all(np.abs(d).max() <= 3 for d in disp)
+
+
+def test_selected_points_are_voxel_centers_consistent_with_patch_sampling():
+    from deepaneseg.volume.selection import select_points
+
+    vox2met = np.array([[0.4, 0, 0, -10.0], [0, 0.4, 0, 5.0], [0, 0, 0.6, 2.0], [0, 0, 0, 1]])
+    vol = np.zeros((30, 30, 30))
+    vol[12, 7, 20] = 1.0
+
+    (point,) = select_points(vol, vox2met, thres_low=0.5, r=1)
+
+    np.testing.assert_allclose(point, (vox2met @ [12, 7, 20, 1])[:3])
+    patch, _ = get_patch(vol, vox2met, point, size=[1.2, 1.2, 1.8], dim=3)  # 3 voxels at the volume resolution
+    assert patch[1, 1, 1] == pytest.approx(1.0)
