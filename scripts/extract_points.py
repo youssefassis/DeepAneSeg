@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import numpy as np
 import json
 import deepaneseg.volume.selection as vs
@@ -9,7 +10,7 @@ r = 20
 nb_points = 100
 
 patients = dio.fetch_patient_dirs("/home/yassis/Data")
-for pateint in patients:
+for patient in patients:
 	os.chdir(patient)
 
 	print('Load volume from disk')
@@ -19,7 +20,7 @@ for pateint in patients:
 
 	print(f'Extracting points')
 	forbidden_points=dio.read_points_from_csv(d['pts aneurysm'])
-	fp = dio.points_to_spheres(forbidden_points)[:,:-1] # drop centers
+	fp = dio.points_to_spheres(forbidden_points)[:,:-1] # drop radii
 	T=np.percentile(vol[vol>0],95)
 	Tl=np.percentile(vol[vol>0],50)
 	Th=np.percentile(vol[vol>0],90)
@@ -37,5 +38,5 @@ for pateint in patients:
 	qs=pd.DataFrame(q,columns=list('xyz'))
 	qs['type']=pd.Categorical(['Parenchyma']*len(q))
 
-	points=ps.append(qs)
+	points=pd.concat([ps, qs])
 	points.to_csv('points.csv')

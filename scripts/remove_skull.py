@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
+import os
 import sys
 import numpy as np
 import nibabel as ni
 import json
+import deepaneseg.data.io as dio
 import deepaneseg.volume.selection as vs
 
 patients = dio.fetch_patient_dirs("/home/yassis/Data")
-for pateint in patients:
+for patient in patients:
 	os.chdir(patient)
 	print('Load volume from disk')
 	with open('config.json','r') as f:
