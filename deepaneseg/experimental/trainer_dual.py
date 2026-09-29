@@ -1,60 +1,54 @@
 import os
-
 import torch
-import torch.nn as nn
 from tqdm import tqdm
 from deepaneseg.utils import GradualWarmupScheduler
-
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-
 from deepaneseg.utils import get_logger, RunningAverage, save_checkpoint, load_checkpoint
-
 from prefetch_generator import BackgroundGenerator
-
+from deepaneseg.training.trainer import get_multiscale_gt
 
 logger = get_logger("Model Trainer")
 
 
 def create_trainer(
-    train_dir,
-    max_num_epochs,
-    early_stop,
-    device,
-    model,
-    optimizer,
-    lr_scheduler,
-    loss_criterion,
-    eval_criterion,
-    loaders,
-    max_iterations,
+    config, device, model, optimizer, lr_scheduler, loss_criterion, eval_criterion, loaders, max_iterations
 ):
-    """
-    Creates a Trainer writing to train_dir, resuming from train_dir/last_checkpoint.pytorch if it exists.
-    The best checkpoint is selected on the validation metric, or on the training metric without validation set.
-    """
-    model_path = os.path.join(train_dir, "last_checkpoint.pytorch")
-    has_validation = loaders is not None and loaders.get("valid") is not None
-    common = dict(
-        model=model,
-        optimizer=optimizer,
-        lr_scheduler=lr_scheduler,
-        loss_criterion=loss_criterion,
-        eval_criterion=eval_criterion,
-        device=device,
-        loaders=loaders,
-        checkpoint_dir=train_dir,
-        model_path=model_path,
-        max_num_epochs=max_num_epochs,
-        max_iterations=max_iterations,
-        earlystop=early_stop,
-        monitor="valid" if has_validation else "train",
-    )
+    assert config is not None, "Could not find trainer configuration"
+    model_path = config["model_file"]
     if os.path.isfile(model_path):
-        logger.info(f"Continue training from a checkpoint: '{model_path}'")
-        return Trainer.from_checkpoint(**common)
-    logger.info("Training the model from scratch")
-    return Trainer(**common)
+        logger.info(f"Continue training from checkpoint: '{model_path}'")
+        return Trainer.from_checkpoint(
+            model=model,
+            optimizer=optimizer,
+            lr_scheduler=lr_scheduler,
+            loss_criterion=loss_criterion,
+            eval_criterion=eval_criterion,
+            device=device,
+            loaders=loaders,
+            checkpoint_dir=config["test_dir"],
+            model_path=model_path,
+            max_num_epochs=config["n_epochs"],
+            max_iterations=max_iterations,
+            earlystop=config.get("early_stop", 100),
+        )
+    else:
+        logger.info("Start training the model from scratch")
+        return Trainer(
+            model=model,
+            optimizer=optimizer,
+            lr_scheduler=lr_scheduler,
+            loss_criterion=loss_criterion,
+            eval_criterion=eval_criterion,
+            device=device,
+            loaders=loaders,
+            checkpoint_dir=config["test_dir"],
+            model_path=model_path,
+            max_num_epochs=config["n_epochs"],
+            max_iterations=max_iterations,
+            earlystop=config.get("early_stop", 100),
+            config=config,
+        )
 
 
 class Trainer:
@@ -98,7 +92,7 @@ class Trainer:
         self.eval_score_higher_is_better = eval_score_higher_is_better
         self.num_epoch = num_epoch
         self.monitor = monitor
-        self.nonimproved_epoch = nonimproved_epoch
+        self.nonimproved_epoch = 0  # nonimproved_epoch
         self.earlystop = earlystop
 
         if best_eval_score is not None:
@@ -109,6 +103,8 @@ class Trainer:
             else:
                 self.best_eval_score = float("+inf")
         self.writer = SummaryWriter(log_dir=os.path.join(checkpoint_dir, "logs"))
+
+        self.adjust_lr = True
 
     @classmethod
     def from_checkpoint(
@@ -125,14 +121,11 @@ class Trainer:
         max_num_epochs=0,
         max_iterations=0,
         earlystop=100,
-        monitor="valid",
         **kwargs,
     ):
 
         state = load_checkpoint(model_path, model, optimizer)
         logger.info(f"Checkpoint loaded. Epoch: {state['epoch']}; Best metric score: {state['best_eval_score']}")
-        if lr_scheduler is not None and state.get("scheduler_state_dict") is not None:
-            lr_scheduler.load_state_dict(state["scheduler_state_dict"])
 
         return cls(
             model,
@@ -150,13 +143,10 @@ class Trainer:
             max_num_epochs=max_num_epochs,
             max_iterations=max_iterations,
             earlystop=earlystop,
-            monitor=monitor,
-            nonimproved_epoch=state.get("nonimproved_epoch", 0),
         )
 
     def fit(self, sanity_check=False, deep_supervision=False):
         torch.backends.cudnn.benchmark = True
-        self.adjust_lr = True
         logger.info(f"Start training the model for the next {self.max_num_epochs - self.num_epoch} epochs")
         for epoch in range(self.num_epoch, self.max_num_epochs):
             should_terminate = self.train(sanity_check, deep_supervision)
@@ -168,7 +158,6 @@ class Trainer:
             self.num_epoch += 1
         logger.info(f"Reached maximum number of epochs: {self.max_num_epochs}. Finishing training.")
 
-    ######################## BASIC ########################
     def train(self, sanity_check=False, deep_supervision=False):
         logger.info(f"Epoch [{self.num_epoch}/{self.max_num_epochs}]")
         self.model.train()
@@ -176,30 +165,34 @@ class Trainer:
             BackgroundGenerator(self.loaders["train"]), leave=True, unit="batch", total=self.max_iterations["train"]
         )
         self.lr = self.optimizer.param_groups[0]["lr"]
-
         train_losses = RunningAverage()
         metric_scores = RunningAverage()
-        for batch in loop:
-            input, target = self._split_training_batch(batch)
 
-            output = self.model(input)
+        for batch in loop:
+            input, input_vessel, target, target_vessel = self._split_training_batch(batch)
+
+            output, output_vessel = self.model(input, input_vessel)
             if deep_supervision:
                 target = get_multiscale_gt(target)
+                target_vessel = get_multiscale_gt(target_vessel)
 
-            loss, metric = self.loss_batch(self.loss_criterion, self.eval_criterion, output, target, opt=self.optimizer)
+            loss, metric = self.loss_batch(
+                self.loss_criterion,
+                self.eval_criterion,
+                [output, output_vessel],
+                [target, target_vessel],
+                opt=self.optimizer,
+            )
 
             train_losses.update(loss, self._batch_size(input))
             metric_scores.update(metric, self._batch_size(input))
             loss, metric = train_losses.avg, metric_scores.avg
-
             # Progress bar
             loop.set_description("Training")
-            loop.set_postfix(loss=loss, metric=metric, lr=self.lr)
-            if sanity_check is True:
+            loop.set_postfix(loss=loss, dice=metric, lr=self.lr)
+            if sanity_check is True and target.sum() > 0:
                 break
         self._log_stats("train", loss, metric, self.num_epoch)
-        if self.monitor == "train":  # no validation set: schedule on the training loss
-            self._update_lr(loss)
         self._save_best("train", metric)
 
         if self.should_stop():
@@ -218,33 +211,37 @@ class Trainer:
                 BackgroundGenerator(self.loaders["valid"]), leave=True, unit="batch", total=self.max_iterations["valid"]
             )
             for batch in loop:
-                input, target = self._split_training_batch(batch)
+                input, input_vessel, target, target_vessel = self._split_training_batch(batch)
 
-                output = self.model(input)
+                output, output_vessel = self.model(input, input_vessel)
+
                 if deep_supervision:
                     target = get_multiscale_gt(target)
+                    target_vessel = get_multiscale_gt(target_vessel)
 
-                loss, metric = self.loss_batch(self.loss_criterion, self.eval_criterion, output, target, opt=None)
+                loss, metric = self.loss_batch(
+                    self.loss_criterion, self.eval_criterion, [output, output_vessel], [target, target_vessel], opt=None
+                )
 
                 eval_losses.update(loss, self._batch_size(input))
                 eval_metric.update(metric, self._batch_size(input))
                 loss, metric = eval_losses.avg, eval_metric.avg
 
                 loop.set_description("Validat.")
-                loop.set_postfix(eval_loss=loss, eval_metric=metric)
+                loop.set_postfix(eval_loss=loss, eval_dice=metric)
                 if sanity_check is True:
                     break
             self._log_stats("val", loss, metric, self.num_epoch)
-            self._update_lr(loss)  # before saving, so the checkpoint holds the scheduler state of the next epoch
-            self._save_best("valid", metric)
+            saved = self._save_best("valid", metric)
+            self._update_lr(loss, saved)
 
             if self.should_stop(train=False):
                 logger.info("Stopping criterion is satisfied. Finishing training.")
                 return True
             return False
 
-    def _update_lr(self, loss):
-        if self.scheduler is None or not self.adjust_lr:
+    def _update_lr(self, loss, saved):
+        if not self.adjust_lr:
             return
         if isinstance(self.scheduler, ReduceLROnPlateau):
             self.scheduler.step(loss)
@@ -302,7 +299,7 @@ class Trainer:
         return is_best
 
     def _save_checkpoint(self, is_best):
-        if isinstance(self.model, nn.DataParallel):
+        if isinstance(self.model, torch.nn.DataParallel):
             state_dict = self.model.module.state_dict()
         else:
             state_dict = self.model.state_dict()
@@ -314,8 +311,6 @@ class Trainer:
                 "best_eval_score": self.best_eval_score,
                 "eval_score_higher_is_better": self.eval_score_higher_is_better,
                 "optimizer_state_dict": self.optimizer.state_dict(),
-                "scheduler_state_dict": self.scheduler.state_dict() if self.scheduler is not None else None,
-                "nonimproved_epoch": self.nonimproved_epoch,
                 "num_epoch": self.num_epoch,
                 "max_num_epochs": self.max_num_epochs,
             },
@@ -324,10 +319,10 @@ class Trainer:
             logger=logger,
         )
 
-    def _log_stats(self, phase, loss_avg, metric_avg, step):
+    def _log_stats(self, phase, loss_avg, dice_avg, step):
         def _log_lr():
             lr = self.optimizer.param_groups[0]["lr"]
-            self.writer.add_scalar("learningRate", lr, self.num_epoch)
+            self.writer.add_scalar("Learning Rate", lr, self.num_epoch)
             self.writer.close()
 
         # Log learning rate
@@ -336,8 +331,7 @@ class Trainer:
 
         # Log loss and metric
         self.writer.add_scalars("Loss", {f"{phase}": loss_avg}, step)
-        metric_name = type(self.eval_criterion).__name__ if self.eval_criterion is not None else "metric"
-        self.writer.add_scalars(f"Metrics/{metric_name}", {f"{phase}": metric_avg}, step)
+        self.writer.add_scalars("Metrics/Dice", {f"{phase}": dice_avg}, step)
         self.writer.close()
 
     def _split_training_batch(self, t):
@@ -358,12 +352,12 @@ class Trainer:
 
     @staticmethod
     def loss_batch(loss_func, metrics_func, output, target, opt=None):
-        loss = compute_loss(loss_func, output, target)
+        loss = (compute_loss(loss_func, output[0], target[0]) + compute_loss(loss_func, output[1], target[1])) / 2
         with torch.no_grad():
-            if isinstance(output, list) and isinstance(target, list):
-                metric_b = metrics_func(output[-1], target[-1])
+            if isinstance(output[0], list) and isinstance(target[0], list):
+                metric_b = metrics_func(output[0][-1], target[0][-1])
             else:
-                metric_b = metrics_func(output, target)
+                metric_b = metrics_func(output[0], target[0])
         if opt is not None:
             opt.zero_grad()  # reset gradient to zero
             loss.backward()  # backward pass
@@ -380,13 +374,3 @@ def compute_loss(loss_func, output, target):
         return sum(loss) / len(loss)
     else:
         return loss_func(output, target)
-
-
-def get_multiscale_gt(target):
-    """return a list of features"""
-    gt_features_levels = []
-    gt_features_levels.append(torch.nn.Upsample(size=6, mode="trilinear", align_corners=True)(target))
-    gt_features_levels.append(torch.nn.Upsample(size=12, mode="trilinear", align_corners=True)(target))
-    gt_features_levels.append(torch.nn.Upsample(size=24, mode="trilinear", align_corners=True)(target))
-    gt_features_levels.append(target)
-    return gt_features_levels

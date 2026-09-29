@@ -1,30 +1,43 @@
 #!/usr/bin/env python3
-import sys
-import numpy as np
-import nibabel as ni
+"""Skull-strip every patient volume; configuration in configs/remove_skull.yaml.
+
+Example: python scripts/remove_skull.py data_dir=/data
+The result is saved next to each volume and registered as 'noskull volume' in the patient's config.json.
+"""
+
 import json
+import os
+
+import hydra
+import nibabel as ni
+import numpy as np
+
+import deepaneseg.data.io as dio
 import deepaneseg.volume.selection as vs
 
-patients = dio.fetch_patient_dirs("/home/yassis/Data")
-for pateint in patients:
-	os.chdir(patient)
-	print('Load volume from disk')
-	with open('config.json','r') as f:
-	    d=json.load(f)
-	ni_vol=ni.load(d['init volume'])
-	vol=np.asarray(ni_vol.dataobj).astype(np.float32)
-	vox2met=ni_vol.affine
-	met2vox=np.linalg.inv(vox2met)
 
-	print('Preprocess volume')
-	mask=vs.removeSkullMask(vol)
-	vol=mask*vol
-	max=np.max(vol.ravel())
-	vol/=max
+def remove_skull(patient_dir, output_name):
+    config_file = os.path.join(patient_dir, "config.json")
+    with open(config_file) as f:
+        config = json.load(f)
+    ni_vol = ni.load(os.path.join(patient_dir, config["init volume"]))
+    vol = np.asarray(ni_vol.dataobj).astype(np.float32)
 
-	print('Saving output')
-	outname='noskull.nii.gz'
-	d['noskull volume']=outname
-	ni.Nifti1Image(vol,vox2met).to_filename(outname)
-	with open('config.json','w') as f:
-	    json.dump(d,f,indent=2)
+    vol = vs.remove_skull_mask(vol) * vol
+    vol /= np.max(vol)
+
+    ni.Nifti1Image(vol, ni_vol.affine).to_filename(os.path.join(patient_dir, output_name))
+    config["noskull volume"] = output_name
+    with open(config_file, "w") as f:
+        json.dump(config, f, indent=2)
+
+
+@hydra.main(version_base="1.3", config_path="../configs", config_name="remove_skull")
+def main(cfg):
+    for patient_dir in dio.fetch_patient_dirs(cfg.data.data_dir):
+        print(f"Removing skull: {patient_dir}")
+        remove_skull(patient_dir, cfg.output)
+
+
+if __name__ == "__main__":
+    main()

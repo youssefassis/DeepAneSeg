@@ -1,0 +1,13 @@
+defaults:
+  - data: default
+  - _self_
+
+data_dir: ???
+radius: 20                               # minimum distance between two points, in mm
+n_points: 100                            # maximum number of points of each type
+output: ${data.negative_patch_centers}   # written in each patient folder, with its .fcsv counterpart
+random: false                            # random parenchyma points instead of vessel + parenchyma points
+
+hydra:
+  run:
+    dir: ${data.work_dir}/logs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S}
