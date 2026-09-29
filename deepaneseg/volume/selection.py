@@ -30,7 +30,7 @@ def points_in_radius(q,p,r):
     else:
         queries=q
     tree=skn.KDTree(p)
-    return tree.query_radius(queries,r)[0]
+    return np.unique(np.concatenate(tree.query_radius(queries,r)))
 
 def select_points(vol,vox2met,thres_low,r,thres_high=None,forbidden_points=None,
                  nb_points=None, extract_type='Vessels'):
@@ -79,8 +79,8 @@ def select_points(vol,vox2met,thres_low,r,thres_high=None,forbidden_points=None,
     if not forbidden_points is None:
         if len(forbidden_points.shape) == 1:
             forbidden_points = forbidden_points[np.newaxis,:]
-        i=tree.query_radius(forbidden_points,r)[0]
-        removed[i]=True
+        for i in tree.query_radius(forbidden_points,r):
+            removed[i]=True
 
     ret=np.empty((0,3))
 
