@@ -1,3 +1,5 @@
+> **Note:** This repository is a copy of the original code hosted at [gitlab.inria.fr/yassis/DeepAneSeg](https://gitlab.inria.fr/yassis/DeepAneSeg), developed during my PhD at Inria/LORIA.
+
 # An Efficient Data Strategy for the Detection of Brain Aneurysms from MRA with Deep Learning
 This repository contains the official software code related to the paper ["An Efficient Data Strategy for the Detection of Brain Aneurysms from MRA with Deep Learning"](https://link.springer.com/chapter/10.1007/978-3-030-88210-5_22). The paper was published in MICCAI Workshop on Data Augmentation, Labelling, and Imperfections 2021.
 
