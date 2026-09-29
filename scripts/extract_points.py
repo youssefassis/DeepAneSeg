@@ -1,42 +1,26 @@
 #!/usr/bin/env python3
-import os
-import numpy as np
-import json
-import deepaneseg.volume.selection as vs
+"""Select negative patch centers (on vessels and in the parenchyma) for every patient.
+
+Writes <output> (CSV) and its 3D Slicer .fcsv counterpart in each patient folder.
+Requires the 'noskull volume' produced by remove_skull.py.
+"""
+import argparse
+
 import deepaneseg.data.io as dio
-import pandas as pd
 
-r = 20
-nb_points = 100
 
-patients = dio.fetch_patient_dirs("/home/yassis/Data")
-for patient in patients:
-	os.chdir(patient)
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('data_dir', help='directory containing the patient folders (P????)')
+    parser.add_argument('--radius', type=float, default=20, help='minimum distance between two points, in mm')
+    parser.add_argument('--n-points', type=int, default=100, help='maximum number of points of each type')
+    parser.add_argument('--output', default='points.csv', help='output file name, inside each patient folder')
+    parser.add_argument('--random', action='store_true', help='pick random parenchyma points instead of vessel + parenchyma')
+    args = parser.parse_args()
 
-	print('Load volume from disk')
-	with open("ndl_config.json", 'r') as f:
-	    d = json.load(f)
-	vol, vox2met = dio.read_nii_from_file(d['noskull volume'])
+    dio.extract_points(args.data_dir, r=args.radius, nb_points=args.n_points, outfile=args.output,
+                       random_points=args.random)
 
-	print('Extracting points')
-	forbidden_points=dio.read_points_from_csv(d['pts aneurysm'])
-	fp = dio.points_to_spheres(forbidden_points)[:,:-1] # drop radii
-	T=np.percentile(vol[vol>0],95)
-	Tl=np.percentile(vol[vol>0],50)
-	Th=np.percentile(vol[vol>0],90)
-	print('\tVessels ', end='')
-	p=vs.select_points(vol,vox2met,thres_low=T,r=r,forbidden_points=fp,nb_points=nb_points,extract_type='Vessels')
-	print(f'{len(p)} points')
-	print('\tParenchyma ',end='')
-	q=vs.select_points(vol,vox2met,thres_low=Tl,thres_high=Th,r=r,forbidden_points=np.vstack((fp,p)),nb_points=nb_points,extract_type='Parenchyma')
-	print(f'{len(q)} points')
 
-	# export to csv using pandas
-	print('Exporting to CSV')
-	ps=pd.DataFrame(p,columns=list('xyz'))
-	ps['type']=pd.Categorical(['Vessel']*len(p))
-	qs=pd.DataFrame(q,columns=list('xyz'))
-	qs['type']=pd.Categorical(['Parenchyma']*len(q))
-
-	points=pd.concat([ps, qs])
-	points.to_csv('points.csv')
+if __name__ == '__main__':
+    main()

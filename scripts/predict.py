@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-import os
-import sys
+"""Predict the test patients with the model of <train_dir>; volumes are written to <train_dir>/prediction/test."""
+import argparse
 import json
+import os
 
 import deepaneseg.data.io as dio
 import torch
@@ -10,21 +11,17 @@ from deepaneseg.utils import get_logger, load_model
 from deepaneseg.inference.prediction import ndl_run_validation_cases
 
 def main():
-    d = sys.argv[1]
-    cfg = os.path.join(d,'ndl_config.json')
-    try:
-        with open(cfg,'r') as f:
-            config = json.load(f)
-    except:
-        print(f'No such config file {cfg}')
-        exit()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('train_dir', help='training directory containing ndl_config.json (see new_train.py)')
+    d = parser.parse_args().train_dir
+    with open(os.path.join(d, 'ndl_config.json')) as f:
+        config = json.load(f)
 
     logger = get_logger('Data Preparation')
 
     normalize = config['normalize'] if 'normalize' in config else None
 
     _, _, test_list = dio.read_split(config['split_file'])
-#    test_list = ["/home/yassis/Data/P0078"]
     logger.info(f"{len(test_list)} Patients for testing")
 
     volume = "noskull volume" # or init volume

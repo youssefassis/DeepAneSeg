@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-
-import sys, os, json
+"""Train a model as configured in <train_dir>/ndl_config.json; checkpoints are written to the same directory."""
+import argparse
+import json
+import os
 import torch
 
 from deepaneseg.data.io import add_points_to_patient_data, read_split, read_patient_data_base
@@ -12,14 +14,11 @@ from deepaneseg.training.metrics import get_metric
 from deepaneseg.training.trainer import create_trainer
 
 def main():
-    d = sys.argv[1]
-    cfg = os.path.join(d,'ndl_config.json')
-    try:
-        with open(cfg,'r') as f:
-            config = json.load(f)
-    except:
-        print(f'No such config file {cfg}')
-        exit()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('train_dir', help='training directory containing ndl_config.json (see new_train.py)')
+    d = parser.parse_args().train_dir
+    with open(os.path.join(d, 'ndl_config.json')) as f:
+        config = json.load(f)
 
     # Model Configuration
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -35,7 +34,6 @@ def main():
     vessel = None
 
     train_list, valid_list, _ = read_split(config['split_file'])
-#    train_list, valid_list = ["/srv/storage/tangram@talc-data2.nancy.grid5000.fr/yassis/Data/P0071"], ["/srv/storage/tangram@talc-data2.nancy.grid5000.fr/yassis/Data/P0071"]
 
     train_db = add_points_to_patient_data(read_patient_data_base( train_list, normalize=normalize, vessel=vessel, label="training"), config['negative patch centers'])
     valid_db = add_points_to_patient_data(read_patient_data_base( valid_list, normalize=normalize, vessel=vessel, label="validation"), config['negative patch centers']) if len(valid_list)>0 else None

@@ -1,31 +1,43 @@
 #!/usr/bin/env python3
-import os
-import numpy as np
-import nibabel as ni
+"""Skull-strip every patient volume and register it as 'noskull volume' in the patient config.json."""
+import argparse
 import json
+import os
+
+import nibabel as ni
+import numpy as np
+
 import deepaneseg.data.io as dio
 import deepaneseg.volume.selection as vs
 
-patients = dio.fetch_patient_dirs("/home/yassis/Data")
-for patient in patients:
-	os.chdir(patient)
-	print('Load volume from disk')
-	with open('config.json','r') as f:
-	    d=json.load(f)
-	ni_vol=ni.load(d['init volume'])
-	vol=np.asarray(ni_vol.dataobj).astype(np.float32)
-	vox2met=ni_vol.affine
-	met2vox=np.linalg.inv(vox2met)
+OUTPUT_NAME = 'noskull.nii.gz'
 
-	print('Preprocess volume')
-	mask=vs.remove_skull_mask(vol)
-	vol=mask*vol
-	max=np.max(vol.ravel())
-	vol/=max
 
-	print('Saving output')
-	outname='noskull.nii.gz'
-	d['noskull volume']=outname
-	ni.Nifti1Image(vol,vox2met).to_filename(outname)
-	with open('config.json','w') as f:
-	    json.dump(d,f,indent=2)
+def remove_skull(patient_dir):
+    config_file = os.path.join(patient_dir, 'config.json')
+    with open(config_file) as f:
+        config = json.load(f)
+    ni_vol = ni.load(os.path.join(patient_dir, config['init volume']))
+    vol = np.asarray(ni_vol.dataobj).astype(np.float32)
+
+    vol = vs.remove_skull_mask(vol) * vol
+    vol /= np.max(vol)
+
+    ni.Nifti1Image(vol, ni_vol.affine).to_filename(os.path.join(patient_dir, OUTPUT_NAME))
+    config['noskull volume'] = OUTPUT_NAME
+    with open(config_file, 'w') as f:
+        json.dump(config, f, indent=2)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('data_dir', help='directory containing the patient folders (P????)')
+    args = parser.parse_args()
+
+    for patient_dir in dio.fetch_patient_dirs(args.data_dir):
+        print(f'Removing skull: {patient_dir}')
+        remove_skull(patient_dir)
+
+
+if __name__ == '__main__':
+    main()
