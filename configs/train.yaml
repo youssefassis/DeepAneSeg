@@ -1,0 +1,23 @@
+defaults:
+  - data: default
+  - model: unet3d
+  - optimizer: adam
+  - scheduler: reduce_lr_on_plateau
+  - augmentation: default
+  - _self_
+
+data_dir: ???        # directory containing the patient folders (P????)
+name: ???            # training name; outputs go to ${data.work_dir}/${name}
+
+loss: BCELoss        # see deepaneseg.training.losses.get_loss_criterion
+metric: Kappa        # see deepaneseg.training.metrics.get_metric; selects the best checkpoint
+epochs: 200
+early_stop: 20       # epochs without validation improvement before stopping
+batch_size: 20
+validation_batch_size: 40
+num_workers: 4
+weight_init: keras   # keras (Xavier uniform) or pytorch (PyTorch defaults)
+
+hydra:
+  run:
+    dir: ${data.work_dir}/${name}
