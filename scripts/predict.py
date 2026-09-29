@@ -13,7 +13,7 @@ import torch
 from omegaconf import OmegaConf
 
 import deepaneseg.data.io as dio
-from deepaneseg.inference.prediction import ndl_run_validation_cases
+from deepaneseg.inference.prediction import predict_patients
 from deepaneseg.utils import get_logger, load_model
 
 
@@ -32,11 +32,12 @@ def main(cfg):
     model.eval()
     logger.info(f"Model '{cfg.checkpoint}' loaded on '{device}' in evaluation mode")
 
-    ndl_run_validation_cases(
+    predict_patients(
         test_db,
         device=device,
         model=model,
         patch_size=list(train_cfg.data.patch_size),
+        patch_shape=list(train_cfg.data.patch_shape),
         output_dir=os.path.join(cfg.train_dir, "prediction", "test"),
         margin=cfg.margin,
         batch_size=cfg.batch_size or train_cfg.validation_batch_size,
