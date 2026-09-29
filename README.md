@@ -81,9 +81,15 @@ uv run python scripts/preprocess_data.py data_dir=Data_dir          # split=[0.7
 uv run python scripts/train.py data_dir=Data_dir name=my_training
 ```
 
-**4. Testing:** predictions are written to `Data_dir/0Work/my_training/prediction/test`.
+**4. Testing:** predictions of the test patients are written to `Data_dir/0Work/my_training/prediction/test`: a
+probability map per patient, and its detections (center and radius in mm, size, probability) as CSV and as `.fcsv`
+markups for 3D Slicer.
 ```
 uv run python scripts/predict.py train_dir=Data_dir/0Work/my_training
+```
+Any other scan, or folder of scans, can be predicted the same way (skull-stripped first, like the training data):
+```
+uv run python scripts/predict.py train_dir=Data_dir/0Work/my_training input=scan.nii.gz output_dir=results
 ```
 
 **5. Evaluation:** detection metrics of the test predictions (ADAM challenge criteria: sensitivity and false

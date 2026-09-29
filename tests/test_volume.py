@@ -104,3 +104,10 @@ def test_fill_between_edges_fills_each_line_inclusively():
     assert np.flatnonzero(mask[:, 1, 0]).tolist() == [5]
     assert mask[:, 2, 1].all()
     assert mask.sum() == 5 + 1 + 10  # untouched lines stay empty
+
+
+def test_skull_strip_refuses_a_volume_it_would_empty():
+    from deepaneseg.volume.selection import skull_strip
+
+    with pytest.raises(ValueError, match="skull stripping"):
+        skull_strip(np.random.default_rng(0).random((20, 20, 20)))

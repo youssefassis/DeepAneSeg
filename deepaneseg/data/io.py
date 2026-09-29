@@ -40,6 +40,19 @@ def save_nii_to_file(fname, vol, vox2met):
     ni.save(ni.Nifti1Image(vol, vox2met), fname)
 
 
+def normalize_volume(vol, normalize):
+    """
+    normalize: None or 'None' (unchanged), 'Linear' (rescaled to [0, 1]) or 'Normal' (zero mean, unit variance)
+    """
+    if normalize == "Linear":
+        return (vol - np.min(vol)) / (np.max(vol) - np.min(vol))
+    if normalize == "Normal":
+        return (vol - np.mean(vol)) / np.std(vol)
+    if normalize in (None, "None"):
+        return vol
+    raise ValueError(f"Unsupported normalization '{normalize}', expected Linear, Normal or None")
+
+
 def read_points_from_csv(fname):
     """
     returns a list of points, read from a csv file. Coordinates are stored in columns named 'x', 'y' and 'z'
@@ -101,17 +114,7 @@ def read_patient_data(vol_file, ane_file, normalize=None, vessel_file=None):
     else:
         s = None
 
-    # should we use scikit.learn.normalize (or transform)?
-    if normalize == "Linear":
-        m = np.min(d.ravel())
-        M = np.max(d.ravel())
-        d = (d - m) / (M - m)
-    elif normalize == "Normal":
-        m = np.mean(d.ravel())
-        std = np.std(d.ravel())
-        d = (d - m) / std
-
-    return {"data": d, "affine": a, "aneurysms": s, "vessel": seg}
+    return {"data": normalize_volume(d, normalize), "affine": a, "aneurysms": s, "vessel": seg}
 
 
 def read_patient_data_from_config(cfg_name, volume="init volume", normalize=None, vessel=None):
