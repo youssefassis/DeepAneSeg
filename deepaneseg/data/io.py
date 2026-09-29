@@ -172,7 +172,7 @@ def csv2fcsv(csv_pathname):
     label=[f'{t}_{i}' for i,t in pcsv[['Unnamed: 0','type']].to_numpy()]
     df = pd.concat([pcsv,pd.Series(label,name='id')], axis=1)
     df = df[['id','x','y','z']]
-    head=f'# Markups fiducial file version = 4.10\n# CoordinateSystem = 0\n# columns = {",".join(df)}'
+    head=f'# Markups fiducial file version = 4.10\n# CoordinateSystem = 0\n# columns = {",".join(df)}\n'
     with open(fcsv_file_out, 'w') as f:
 	    f.write(head)
 	    for i,l in df.iterrows():
@@ -180,7 +180,7 @@ def csv2fcsv(csv_pathname):
 
 
 def fcsv2csv(fcsv_file):
-    filename, file_extension = os.path.splitext(csv_file)
+    filename, file_extension = os.path.splitext(fcsv_file)
     assert file_extension == '.fcsv', "Please choose a file with '.fcsv' extension"
     csv_file_out = filename + ".csv"
 
@@ -215,11 +215,11 @@ def extract_points_from_patient(patient, r=20, nb_points=100, outfile="points.cs
 	vol, vox2met = read_nii_from_file(d['noskull volume'])
 	print(f'Extracting points')
 	forbidden_points = read_points_from_csv(d['pts aneurysm'])
-	fp = points_to_spheres(forbidden_points)[:,:-1] # drop centers
+	fp = points_to_spheres(forbidden_points)[:,:-1] # drop radii
 	q = None
 	if random_points:
 		min_threshold, max_threshold = np.percentile(vol[vol>0], 0), np.percentile(vol[vol>0], 100)
-		print(f'\Random Points ', end='')
+		print('Random Points ', end='')
 		p=select_points(vol, vox2met, thres_low=min_threshold, thres_high=max_threshold, r=r,
                              forbidden_points=fp, nb_points=nb_points, extract_type='Parenchyma')
 		print(f'{len(p)} random points')
@@ -242,7 +242,7 @@ def extract_points_from_patient(patient, r=20, nb_points=100, outfile="points.cs
 	if q is not None:
 		qs = pd.DataFrame(q, columns=list('xyz'))
 		qs['type']=pd.Categorical(['Parenchyma']*len(q))
-		points=ps.append(qs)
+		points=pd.concat([ps, qs])
 	else:
 		points = ps
 	points.to_csv(outfile)

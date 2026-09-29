@@ -1,6 +1,6 @@
 import numpy as np
 import random
-import scipy.spatial.transform.rotation as sstr
+from scipy.spatial.transform import Rotation
 
 import deepaneseg.volume.patch as vp
 import deepaneseg.volume.edition as ved
@@ -53,8 +53,8 @@ def generate_transforms(trans=None, rot=None, center=None, disp=None):
 
         r = r*(2*(np.random.random_sample(3)-0.5))
         affine = np.eye(4)
-        affine[:3,:3] = sstr.Rotation.from_euler('zyx', r, degrees=True).as_matrix()
-#        affine[:3,:3] = s * sstr.Rotation.from_euler('zyx', r, degrees=True).as_matrix()
+        affine[:3,:3] = Rotation.from_euler('zyx', r, degrees=True).as_matrix()
+#        affine[:3,:3] = s * Rotation.from_euler('zyx', r, degrees=True).as_matrix()
         affine[:3,3] = t if center is None else t+center.ravel()@(np.eye(3)-affine[:3,:3]).T
 
     if not disp is None:
