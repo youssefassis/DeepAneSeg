@@ -13,17 +13,15 @@ jobs:
         python-version: ["3.10", "3.12"]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
-      - name: Install (CPU-only PyTorch)
-        run: |
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -e ".[dev]"
+          enable-cache: true
+      - name: Install (CPU-only PyTorch, from uv.lock)
+        run: uv sync --locked --extra cpu
       - name: Lint
-        run: ruff check .
+        run: uv run ruff check .
       - name: Format
-        run: ruff format --check .
+        run: uv run ruff format --check .
       - name: Test
-        run: pytest
+        run: uv run pytest
