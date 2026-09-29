@@ -21,4 +21,4 @@ RUN uv sync --locked --no-install-project --no-dev --extra ${TORCH} && rm -rf /r
 COPY . .
 RUN uv sync --locked --no-dev --extra ${TORCH} && rm -rf /root/.cache/uv
 
-CMD ["python", "scripts/train.py", "--help"]
+CMD ["deepaneseg-train", "--help"]

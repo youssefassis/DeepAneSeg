@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
-"""Train a model; configuration in configs/train.yaml.
+"""Train a model; configuration in deepaneseg/configs/train.yaml.
 
-Example: python scripts/train.py data_dir=/data name=exp1 batch_size=8
+Example: deepaneseg-train data_dir=/data name=exp1 batch_size=8
 Checkpoints, TensorBoard logs and the resolved configuration (.hydra/) are written to <data_dir>/0Work/<name>.
 Running the same command again resumes from the last checkpoint.
 """

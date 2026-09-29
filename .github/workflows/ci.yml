@@ -35,4 +35,4 @@ jobs:
       - name: Smoke test
         run: |
           docker run --rm deepaneseg:cpu python -c "import torch, deepaneseg.utils; print(torch.__version__)"
-          docker run --rm deepaneseg:cpu python scripts/train.py --help
+          docker run --rm deepaneseg:cpu deepaneseg-train --help
