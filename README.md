@@ -25,9 +25,9 @@ deepaneseg/
   training/   dataset, losses, metrics, trainer
   inference/  patch-wise prediction and ADAM-style evaluation
   experimental/  post-paper models (vessel-coupled U-Nets) and their trainer
-configs/      Hydra configuration (see Configuration)
-scripts/      pipeline steps (see Usage)
-  experimental/  analysis scripts from the PhD experiments
+  cli/        pipeline commands (see Usage)
+  configs/    Hydra configuration (see Configuration)
+scripts/experimental/  analysis scripts from the PhD experiments
 ```
 
 The data is expected in the following layout:
@@ -48,56 +48,57 @@ Data_dir/
 ```
 
 # Configuration
-Settings are [Hydra](https://hydra.cc) configs in `configs/`: one file per script (`train.yaml`, `predict.yaml`,
-`preprocess.yaml`, `remove_skull.yaml`, `extract_points.yaml`) composed from groups (`data`, `model`, `optimizer`,
+Settings are [Hydra](https://hydra.cc) configs in `deepaneseg/configs/`: one file per command (`train.yaml`,
+`predict.yaml`, `evaluate.yaml`, `preprocess.yaml`, `remove_skull.yaml`, `extract_points.yaml`) composed from groups (`data`, `model`, `optimizer`,
 `scheduler`, `augmentation`). Any value can be overridden on the command line:
 ```
-uv run python scripts/train.py data_dir=Data_dir name=my_training batch_size=8 optimizer.lr=3e-4 model.f_maps=32
-uv run python scripts/train.py --cfg job --resolve data_dir=Data_dir name=my_training   # print the config
+uv run deepaneseg-train data_dir=Data_dir name=my_training batch_size=8 optimizer.lr=3e-4 model.f_maps=32
+uv run deepaneseg-train --cfg job --resolve data_dir=Data_dir name=my_training   # print the config
 ```
 Runs are reproducible: `seed` (0 by default) fixes the patient split and the training, and each training writes
 `run_info.json` with the git commit and library versions next to its checkpoints. For identical GPU runs, also set
 `deterministic=true` (slower).
 
 To add an alternative (for example another scheduler), add a file to the group, such as
-`configs/scheduler/step.yaml` with a `_target_` class, and select it with `scheduler=step`.
+`deepaneseg/configs/scheduler/step.yaml` with a `_target_` class, and select it with `scheduler=step`.
 
 # Usage
-Run every command from the repository root.
+Run the commands with `uv run` from the repository folder, or directly (`deepaneseg-train …`) from any folder once
+`.venv` is activated or the package is installed with pip.
 
 **1. Data preparation:** skull-strip the volumes, then select the negative patch centers.
 ```
-uv run python scripts/remove_skull.py data_dir=Data_dir
-uv run python scripts/extract_points.py data_dir=Data_dir
+uv run deepaneseg-remove-skull data_dir=Data_dir
+uv run deepaneseg-extract-points data_dir=Data_dir
 ```
 
 **2. Split:** assign the patients to training, validation and testing.
 ```
-uv run python scripts/preprocess_data.py data_dir=Data_dir          # split=[0.7,0.2,0.1] overwrite=true
+uv run deepaneseg-preprocess data_dir=Data_dir          # split=[0.7,0.2,0.1] overwrite=true
 ```
 
 **3. Training:** outputs go to `Data_dir/0Work/my_training`; running the same command again resumes training.
 The training and validation volumes are kept in memory as float32, about 4 bytes per voxel (150 MiB for a
 512×512×150 scan).
 ```
-uv run python scripts/train.py data_dir=Data_dir name=my_training
+uv run deepaneseg-train data_dir=Data_dir name=my_training
 ```
 
 **4. Testing:** predictions of the test patients are written to `Data_dir/0Work/my_training/prediction/test`: a
 probability map per patient, and its detections (center and radius in mm, size, probability) as CSV and as `.fcsv`
 markups for 3D Slicer.
 ```
-uv run python scripts/predict.py train_dir=Data_dir/0Work/my_training
+uv run deepaneseg-predict train_dir=Data_dir/0Work/my_training
 ```
 Any other scan, or folder of scans, can be predicted the same way (skull-stripped first, like the training data):
 ```
-uv run python scripts/predict.py train_dir=Data_dir/0Work/my_training input=scan.nii.gz output_dir=results
+uv run deepaneseg-predict train_dir=Data_dir/0Work/my_training input=scan.nii.gz output_dir=results
 ```
 
 **5. Evaluation:** detection metrics of the test predictions (ADAM challenge criteria: sensitivity and false
 positives per patient), written to `Data_dir/0Work/my_training/evaluation`.
 ```
-uv run python scripts/evaluate.py train_dir=Data_dir/0Work/my_training    # threshold=0.5 min_size=null
+uv run deepaneseg-evaluate train_dir=Data_dir/0Work/my_training    # threshold=0.5 min_size=null
 ```
 
 # Differences from the published code
@@ -111,7 +112,8 @@ uv sync --extra cu126    # NVIDIA GPU (CUDA 12.6)
 uv sync --extra cpu      # CPU only (also the build used on macOS)
 ```
 This creates `.venv` with the exact versions of `uv.lock`, including pytest and ruff. Commands then run with
-`uv run`, e.g. `uv run pytest`. Without uv, `pip install -e .` also works (PyTorch's default PyPI build).
+`uv run`, e.g. `uv run pytest`. Without uv, `pip install -e .` also works (PyTorch's default PyPI build), or, to only
+use the commands, `pip install git+https://github.com/youssefassis/DeepAneSeg`.
 
 # Docker
 Build the image with the GPU (default) or CPU PyTorch build:
@@ -122,9 +124,9 @@ docker build -t deepaneseg:cpu --build-arg TORCH=cpu .
 Mount the data folder and run any script; outputs are written under `Data_dir/0Work` on the host:
 ```
 docker run --rm --gpus all --shm-size=8g -v /path/to/Data_dir:/data deepaneseg \
-    python scripts/train.py data_dir=/data name=my_training
+    deepaneseg-train data_dir=/data name=my_training
 docker run --rm --gpus all --shm-size=8g -v /path/to/Data_dir:/data deepaneseg \
-    python scripts/predict.py train_dir=/data/0Work/my_training
+    deepaneseg-predict train_dir=/data/0Work/my_training
 ```
 GPU runs need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/) on the
 host. `--shm-size` gives the data-loading workers enough shared memory, and `--user $(id -u):$(id -g)` creates the
