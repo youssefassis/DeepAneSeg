@@ -40,9 +40,6 @@ class UNet3D(nn.Module):
         x = self.final_activation(x)
         return x
 
-## Test model
-#model = UNet3D()
-#print(model(torch.randn(1,1,48,48,48)).shape)
 
 #######################################  Proposition 1 #########################################################
 class Proposition1(nn.Module):
@@ -126,7 +123,6 @@ class Attention(nn.Module):
             self.upsampling = nn.ConvTranspose3d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, output_padding=1)
         self.conv = nn.Conv3d(in_channels, in_channels, kernel_size=3, stride=1, padding=1, bias=True)
         self.activation = nn.ReLU(inplace=True)
-#        self.project_excitation = ProjectExciteLayer(in_channels)
 
     def crop_and_upsample(self, x, d=2):
         dim = x.shape[-1]
@@ -141,8 +137,6 @@ class Attention(nn.Module):
         segmentation = self.activation(segmentation)
         # Multiplication
         detection = detection * segmentation
-        # channel-wise attention
-#        detection = self.project_excitation(detection)
         # conv
         detection = self.conv(detection)
         return detection
@@ -186,10 +180,6 @@ class ProjectExciteLayer(nn.Module):
         output_tensor = torch.mul(input_tensor, final_squeeze_tensor)
         return output_tensor
 
-## Test model
-# model = Proposition1()
-# print(model)
-# print(model(torch.randn(1,1,48,48,48), torch.randn(1,1,48,48,48))[0].shape)
 
 #######################################  Proposition 2 #########################################################
 
@@ -252,8 +242,6 @@ class Proposition2(nn.Module):
             # Attention
             if x_seg is not None:
                 encoder_features = self.attentionblocks[i](encoder_features, detection_predictions[-1], vessel_predictions[i])
-            # else:
-            #     encoder_features = self.attentionblocks[i](encoder_features, detection_predictions[-1], None)
 
             x_det = decoder(encoder_features, x_det)
             detection_predictions.append(self.final_activation(self.DetMultiscaleConvs[i+1](x_det)))
@@ -295,8 +283,6 @@ class MTA(nn.Module):
             aneurysm = torch.cat([aneurysm, vessel], dim=1)
             aneurysm = self.conv(aneurysm)
 
-        # add squeeze and excite block for channel-wise attention
-#        aneurysm = self.project_excitation(aneurysm)
         aneurysm = aneurysm + skip
         return aneurysm
 
@@ -307,10 +293,6 @@ def create_mta_blocks(f_maps):
         attention_blocks.append(attention)
     return nn.ModuleList(attention_blocks)
 
-## Test model
-#model = Proposition2()
-#print(model)
-#print(model(torch.randn(1, 1, 48, 48, 48))[-1].shape)
 
 #######################################  Proposition 3 #########################################################
 
@@ -327,7 +309,6 @@ class AttentionProp3(nn.Module):
         self.conv = nn.Conv3d(in_channels//2, in_channels//2, kernel_size=3, stride=1, padding=1, bias=True)
         self.activation = nn.ReLU() #inplace=True)
 
-#        self.project_excitation = ProjectExciteLayer(in_channels//2)
 
     def forward(self, skip, features):
         features = self.upsampling(features)
@@ -337,8 +318,6 @@ class AttentionProp3(nn.Module):
         # Multiplication
         features = features * skip
 
-        # add squeeze and excite block for channel-wise attention
-#        features = self.project_excitation(features)
 
         features = self.conv(features)
         return features
@@ -348,45 +327,6 @@ def create_attention_blocks_prop3(f_maps):
     for i in f_maps:
         blocks.append(AttentionProp3(i))
     return nn.ModuleList(blocks)
-
-# class Proposition3(nn.Module):
-#     def __init__(self, in_channels=1, out_channels=1, basic_module=DoubleConv,
-#                     f_maps=64, layer_order='cbr', num_levels=4,
-#                     conv_kernel_size=3, pool_kernel_size=2, conv_padding=1):
-
-#         super(Proposition3, self).__init__()
-#         if isinstance(f_maps, int):
-#             f_maps = number_of_features_per_level(f_maps, num_levels=num_levels)
-
-#         assert isinstance(f_maps, list) or isinstance(f_maps, tuple)
-#         assert len(f_maps) > 1, "Required at least 2 levels in the 3D U-Net"
-
-#         self.encoders = create_encoders(in_channels, f_maps, basic_module, conv_kernel_size,
-#                                         conv_padding, layer_order, pool_kernel_size)
-
-#         self.decoders = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding,
-#                                         layer_order, upsampling=False)
-
-#         self.final_conv = create_conv3d(f_maps[0], out_channels, kernel=1, padding=0)
-#         self.final_activation = nn.Sigmoid()
-#         self.upsampling = create_upsampling_blocks(list(reversed(f_maps[1:])))
-#         self.attentionBlocks = create_attention_blocks_prop3(list(reversed(f_maps[1:])))
-
-#     def forward(self, x):
-#         # Encoder part
-#         encoders_features = []
-#         for encoder in self.encoders:
-#             x = encoder(x)
-#             encoders_features.insert(0, x)
-#         # Decoder part
-#         for i, (decoder, encoder_features) in enumerate(zip(self.decoders, encoders_features[1:])):
-#             x = self.upsampling[i](x)
-#             encoder_features = self.attentionBlocks[i](encoder_features, x)
-#             x = decoder(encoder_features, x)
-#         x = self.final_conv(x)
-#         x = self.final_activation(x)
-#         return x
-
 
 
 class Proposition3(nn.Module):
@@ -434,7 +374,3 @@ class Proposition3(nn.Module):
             detection_predictions = self.final_activation(self.final_conv(x))
         return detection_predictions
 
-# Test model
-# model = Proposition3(deep_supervision=True)
-#print(model)
-# print(model(torch.randn(1, 1, 48, 48, 48))[-1].shape)

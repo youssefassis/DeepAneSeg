@@ -1,6 +1,5 @@
 import deepaneseg.data.io as dio
 #import deepaneseg.volume.selection as vs
-import deepaneseg.volume.edition as ve
 import deepaneseg.volume.patch as vp
 import skimage.morphology as skimo
 import skimage.measure as skime

@@ -2,9 +2,6 @@ import numpy as np
 import random
 from scipy.spatial.transform import Rotation
 
-import deepaneseg.volume.patch as vp
-import deepaneseg.volume.edition as ved
-import deepaneseg.data.io as dio
 
 def generate_transforms(trans=None, rot=None, center=None, disp=None):
     '''
@@ -24,15 +21,6 @@ def generate_transforms(trans=None, rot=None, center=None, disp=None):
     if trans is None and rot is None: # and scal is None:
         affine=None
     else:
-#        s = np.ones((3,3))
-#        if False: #not (scal is None):
-#            if np.isscalar(scal):
-#                b = np.random.uniform(0.7, scal, size=(1,)) # scale = rand num [0.7, scal]
-#                np.fill_diagonal(s, b)
-#            elif len(scal) == 3:
-#                s = np.array([np.random.uniform(low=0.7, high=scal[0]), np.random.uniform(low=1, high=scal[1]), np.random.uniform(low=1, high=scal[2])])
-#            else:
-#                raise TypeError("scale argument should either a scalar or a 3-vector")
         t=np.zeros(3)
         if not trans is None:
             if np.isscalar(trans):
@@ -54,7 +42,6 @@ def generate_transforms(trans=None, rot=None, center=None, disp=None):
         r = r*(2*(np.random.random_sample(3)-0.5))
         affine = np.eye(4)
         affine[:3,:3] = Rotation.from_euler('zyx', r, degrees=True).as_matrix()
-#        affine[:3,:3] = s * Rotation.from_euler('zyx', r, degrees=True).as_matrix()
         affine[:3,3] = t if center is None else t+center.ravel()@(np.eye(3)-affine[:3,:3]).T
 
     if not disp is None:

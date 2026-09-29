@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.nn import functional as F
 
 def number_of_features_per_level(init_channel_number, num_levels):
     return [init_channel_number * 2 ** k for k in range(num_levels)]
@@ -95,22 +94,6 @@ def create_encoders(in_channels, f_maps, basic_module, conv_kernel_size, conv_pa
         encoders.append(encoder)
     return nn.ModuleList(encoders)
 
-# class Decoder(nn.Module):
-#     def __init__(self, in_channels, out_channels, conv_kernel_size=2, scale_factor=(2, 2, 2), basic_module=DoubleConv,
-#                  conv_layer_order='cbr', padding=1):
-#         super(Decoder, self).__init__()
-#         self.upsampling = nn.ConvTranspose3d(in_channels, in_channels, kernel_size=2, stride=2, padding=0)
-#         self.basic_module = basic_module(in_channels+out_channels, out_channels,
-#                                          encoder=False,
-#                                          kernel_size=conv_kernel_size,
-#                                          order=conv_layer_order,
-#                                          padding=padding)
-
-#     def forward(self, encoder_features, x):
-#         x = self.upsampling(x)
-#         x = torch.cat([encoder_features, x], dim=1)
-#         x = self.basic_module(x)
-#         return x
 class Decoder(nn.Module):
     def __init__(self, in_channels, out_channels, conv_kernel_size=2, scale_factor=(2, 2, 2), basic_module=DoubleConv,
                  conv_layer_order='cbr', padding=1, upsampling=True):
@@ -130,20 +113,6 @@ class Decoder(nn.Module):
         x = torch.cat([encoder_features, x], dim=1)
         x = self.basic_module(x)
         return x
-# def create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding, layer_order):
-#     decoders = []
-#     reversed_f_maps = list(reversed(f_maps))
-#     for i in range(len(reversed_f_maps) - 1):
-#         in_feature_num = reversed_f_maps[i]
-#         out_feature_num = reversed_f_maps[i + 1]
-#         decoder = Decoder(in_feature_num, out_feature_num,
-#                           basic_module=basic_module,
-#                           conv_layer_order=layer_order,
-#                           conv_kernel_size=conv_kernel_size,
-#                           padding=conv_padding
-#                           )
-#         decoders.append(decoder)
-#     return nn.ModuleList(decoders)
 
 
 def create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding, layer_order, upsampling=True):

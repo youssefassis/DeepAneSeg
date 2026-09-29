@@ -83,7 +83,6 @@ def ndl_patch_wise_prediction(device, model, data, margin=0, batch_size=1, patie
     """
     patch_shape = [48,48,48]#list(map(int,model.input.shape[-3:]))
     image_shape = np.array(data.shape)
-    predictions = list()
     # compute indices
     if isinstance(margin, int):
         margin = np.asarray([margin] * len(image_shape))
@@ -137,9 +136,6 @@ def ndl_run_validation_case(pat_dict, device, size, output_dir, model, margin=0,
     patch_shape = np.array([48, 48, 48]) #np.array([int(dim) for dim in model.input.shape[-3:]])
     new_spacing = np.array(size) / patch_shape
     tvol = resample_to_spacing(test_data, old_spacing, new_spacing)
-    # trans = np.diag(list(old_spacing/new_spacing)+[1])
-    # trans[:3,3] = 0.5*(old_spacing/new_spacing - 1)
-    # taffine = affine@trans
 
     prediction = ndl_patch_wise_prediction(device, model=model, data=tvol, margin=margin, batch_size=batch_size)
 
@@ -154,15 +150,12 @@ def ndl_run_validation_cases(pat_db, device, model, patch_size, output_dir='.', 
         ndl_run_validation_case(p, device, output_dir=output_dir, model=model, size=patch_size, margin=margin, batch_size=batch_size)
 
 
-from deepaneseg.volume.edition import get_truth
-import deepaneseg.inference.evaluation as dle
 @torch.no_grad()
 def get_patient_prediction(pat_path, device, model, patch_size, output_dir='.', margin=8, batch_size=10, normalization='Normal'):
     pat_dict = dio.read_patient_data_base([pat_path], volume='init volume', normalize=normalization)[0]
 
     affine = pat_dict['affine']
     test_data = pat_dict['data']
-    output_file = os.path.join('/home/yassis/Data/0Work/volume.nii.gz')
     print(f'Processing {os.path.basename(pat_dict["dir"])}')
 
     # reshape input volume
@@ -175,15 +168,7 @@ def get_patient_prediction(pat_path, device, model, patch_size, output_dir='.', 
 
     prediction = resample_to_spacing(prediction, new_spacing, old_spacing)
 
-#    pred[pred>=0.5] = 1
-#    pred[pred<0.5] = 0
-
-#    dio.save_nii_to_file ("/home/yassis/Data/0Work/vol.nii.gz", timage, affine)
 
     # Get truth
     spheres = dio.points_to_spheres(pat_dict["aneurysms"])
-#    truth = get_truth(pat_dict["data"], affine, spheres)
-#    cm = dle.confusion_matrix(pred, affine, spheres, min_size=None)
-#    dio.save_nii_to_file ("/home/yassis/Data/0Work/truth.nii.gz", truth, affine)
-#    _,_, tp_diam, fn_diam = dle.adam_evaluation(pred, affine, spheres, min_size=None)
     return prediction, affine, spheres#cm, tp_diam, fn_diam #scores#timage, truth

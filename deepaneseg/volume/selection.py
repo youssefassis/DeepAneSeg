@@ -60,11 +60,6 @@ def select_points(vol,vox2met,thres_low,r,thres_high=None,forbidden_points=None,
         thres_high=np.max(vol.ravel())
     p,v=extract_points_thres(vol,vox2met,thres_low,thres_high)
 
-    # compute volume boundaries in metric space
-    #E=vox2met[:3,:]@np.vstack((np.array([0,0,0,1]),np.array(vol.shape)))
-    #cm=np.min(E,axis=0)
-    #cM=np.max(E,axis=0)
-    # remove points too close to boundaries
     if (nb_points is None) or (nb_points > len(v)):
         nb_points = len(v)
 
@@ -126,7 +121,7 @@ def remove_skull_mask(vol,percent=60):
         j0,j1,j2=next(g)
         while True:
             m=j0
-            i0,i1,i2=j0,j1,j2
+            i1,i2=j1,j2
             while i1==j1 and i2==j2:
                 M=j0
                 j0,j1,j2=next(g)
@@ -142,45 +137,6 @@ def remove_skull_mask(vol,percent=60):
     # return this mask
     return mask
 
-
-def remove_skull_mask_old(vol):
-    '''Skull stripping'''
-    # compute gradient map and threshold it to its 80th percentile
-    edges=sndi.gaussian_gradient_magnitude(vol,sigma=3)
-    idx=np.nonzero(edges>=np.percentile(edges,80))
-    # sorts the indices so that we can review lines in the volume
-    # according to their y and z coordinates in the
-    # correct order (y first in increasing order, and then z): 
-    # x coordinates are naturally ordered so that, for a given (y,z) pair, 
-    # the first encountered x value is the column index of the first non-null 
-    # voxel along the (y,z) line, and the last encountered value is the last
-    # non voxel along this line
-    idx=sorted(np.vstack((idx[0],idx[1],idx[2])).T,key=lambda x: (x[1], x[2]))
-    # review lines according to (y,z) coordinates
-    # get first and last non-null voxel and then, set all voxels between 
-    # these two extremities to 1 in the mask 
-    g=(i for i in idx)
-    mask=np.zeros(vol.shape)
-    try:
-        n=1
-        j0,j1,j2=next(g)
-        while True:
-            m=j0
-            i0,i1,i2=j0,j1,j2
-            while i1==j1 and i2==j2:
-                M=j0
-                j0,j1,j2=next(g)
-                n+=1
-            mask[m:M,i1,i2]=1
-    except:
-        pass
-
-    # erode this mask to remove the skull
-    footprint=get_ball(2)
-    for _ in range(15):
-        mask=sndi.binary_erosion(mask,structure=footprint,border_value=True).astype(np.uint8)
-    # return this mask
-    return mask
 
 def connected_components_to_spheres(vol, vox2met):
     '''
@@ -189,7 +145,6 @@ def connected_components_to_spheres(vol, vox2met):
     # label CC in volume
     labels = skme.label(vol.astype(np.uint8))
     ncc_pred = np.max(labels.ravel())
-#    print(ncc_pred)
     spheres = np.empty((0,4))
     for i in range(ncc_pred):
         # extract positions of voxels in CC (in voxel coords)

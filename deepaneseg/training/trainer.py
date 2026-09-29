@@ -1,5 +1,4 @@
-import os, io, random
-import itertools
+import os
 
 import torch
 import torch.nn as nn
@@ -10,11 +9,8 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from deepaneseg.utils import get_logger, RunningAverage, save_checkpoint, load_checkpoint
-from deepaneseg.training.metrics import get_metric
 
 from prefetch_generator import BackgroundGenerator
-import deepaneseg.data.io as dio
-from deepaneseg.volume.patch import get_patch_and_truth
 
 
 logger = get_logger('Model Trainer')
@@ -132,7 +128,7 @@ class Trainer:
             loss, metric = train_losses.avg, metric_scores.avg
 
             # Progress bar
-            loop.set_description(f"Training")
+            loop.set_description("Training")
             loop.set_postfix(loss = loss, dice = metric, lr = self.lr)
             if sanity_check is True:
                 break
@@ -165,7 +161,7 @@ class Trainer:
                 eval_metric.update(metric, self._batch_size(input))
                 loss, metric = eval_losses.avg, eval_metric.avg
 
-                loop.set_description(f"Validat.")
+                loop.set_description("Validat.")
                 loop.set_postfix(eval_loss = loss, eval_dice=metric)
                 if sanity_check is True:
                     break
@@ -219,7 +215,7 @@ class Trainer:
             if self.nonimproved_epoch > 0:
                 logger.info(f"Early Stopping: [{self.nonimproved_epoch}/{self.earlystop}]")
                 if self.nonimproved_epoch >= self.earlystop:
-                    logger.info(f"Early stopping criterion is satisfied.")
+                    logger.info("Early stopping criterion is satisfied.")
                     return True
         return False
 
@@ -252,11 +248,6 @@ class Trainer:
             logger=logger)
 
     def _log_stats(self, phase, loss_avg, dice_avg, step):
-        def _log_params():
-            for name, value in self.model.named_parameters():
-                self.writer.add_histogram(name, value.data, self.num_epoch)
-                self.writer.add_histogram(name + '/grad', value.grad.data, self.num_epoch)
-            self.writer.close()
         def _log_lr():
             lr = self.optimizer.param_groups[0]["lr"]
             self.writer.add_scalar('learningRate', lr, self.num_epoch)
@@ -265,17 +256,10 @@ class Trainer:
         if phase == "train":
             _log_lr()
         
-        # Log parameters/gradients
-        # _log_params()
-
-        # Log model graph
-#        if self.num_epoch == 0:
-#            self.writer.add_graph(self.model, [[torch.randn([1, 1, 48, 48, 48]).to(self.device), torch.randn([1, 1, 48, 48, 48]).to(self.device)], torch.randn([1, 1, 48, 48, 48]).to(self.device)] )
-#            self.writer.add_graph(self.model, torch.randn([1, 1, 48, 48, 48]).to(self.device) )
 
         # Log loss and metric
         self.writer.add_scalars("Loss", {f"{phase}": loss_avg}, step)
-        self.writer.add_scalars(f"Metrics/Dice", {f"{phase}": dice_avg}, step)
+        self.writer.add_scalars("Metrics/Dice", {f"{phase}": dice_avg}, step)
         self.writer.close()
 
     def _split_training_batch(self, t):
