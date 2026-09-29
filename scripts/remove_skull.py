@@ -3,7 +3,7 @@ import sys
 import numpy as np
 import nibabel as ni
 import json
-import Volume.Selection as vs
+import deepaneseg.volume.selection as vs
 
 patients = dio.fetch_patient_dirs("/home/yassis/Data")
 for pateint in patients:

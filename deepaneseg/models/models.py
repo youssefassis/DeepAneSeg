@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from buildingblocks import number_of_features_per_level, create_encoders, create_decoders, createConv, DoubleConv
+from deepaneseg.models.building_blocks import number_of_features_per_level, create_encoders, create_decoders, createConv, DoubleConv
 
 #######################################  UNET 3D #########################################################
 

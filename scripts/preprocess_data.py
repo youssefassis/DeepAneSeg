@@ -1,7 +1,7 @@
 import os
 import json
-import Data.IO as dio
-import Data.Generators as dgen
+import deepaneseg.data.io as dio
+import deepaneseg.data.generators as dgen
 
 config = dict()
 config['base_dir'] = '/home/yassis/Data'

@@ -4,17 +4,17 @@ import itertools
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from utils  import GradualWarmupScheduler
+from deepaneseg.utils import GradualWarmupScheduler
 
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from utils import get_logger, RunningAverage, save_checkpoint, load_checkpoint
-from metrics import get_metric
+from deepaneseg.utils import get_logger, RunningAverage, save_checkpoint, load_checkpoint
+from deepaneseg.training.metrics import get_metric
 
 from prefetch_generator import BackgroundGenerator
-import Data.IO as dio
-from Volume.Patch import getPatchAndTruth
+import deepaneseg.data.io as dio
+from deepaneseg.volume.patch import getPatchAndTruth
 
 
 logger = get_logger('Model Trainer')
