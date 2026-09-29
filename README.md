@@ -59,7 +59,9 @@ To add an alternative (for example another scheduler), add a file to the group, 
 # Usage
 Run every command from the repository root.
 
-**1. Data preparation:** skull-strip the volumes, then select the negative patch centers.
+**1. Data preparation:** skull-strip the volumes, then select the negative patch centers (the points are selected
+on the skull-stripped volume). Training and prediction both use the volume set by `data.volume`: the original one
+(`init volume`) by default, or `data.volume="noskull volume"` for the skull-stripped one.
 ```
 python3 scripts/remove_skull.py data_dir=Data_dir
 python3 scripts/extract_points.py data_dir=Data_dir

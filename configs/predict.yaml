@@ -1,7 +1,7 @@
-# Predicts the test patients with a trained model; data and model settings are read from the training's config
+# Predicts the test patients with a trained model; data and model settings (including the volume, data.volume,
+# and its normalization) are read from the training's config, so that prediction sees the same kind of input
 train_dir: ???                    # training directory written by train.py
 checkpoint: last_checkpoint.pytorch
-volume: noskull volume            # key, in each patient's config.json, of the volume to predict on
 margin: 8                         # voxels discarded at each patch border when stitching predictions
 batch_size: null                  # null: the training's validation_batch_size
 

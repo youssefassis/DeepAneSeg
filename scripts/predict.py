@@ -24,8 +24,9 @@ def main(cfg):
 
     _, _, test_list = dio.read_split(train_cfg.data.split_file)
     logger.info(f"{len(test_list)} Patients for testing")
-    test_db = dio.read_patient_data_base(test_list, volume=cfg.volume, normalize=train_cfg.data.normalize)
-    logger.info(f"'{cfg.volume}' successfully loaded with '{train_cfg.data.normalize}' normalization")
+    data_cfg = train_cfg.data  # predict on the same volume and normalization as used for training
+    test_db = dio.read_patient_data_base(test_list, volume=data_cfg.volume, normalize=data_cfg.normalize)
+    logger.info(f"'{data_cfg.volume}' successfully loaded with '{data_cfg.normalize}' normalization")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = load_model(train_cfg.model, os.path.join(cfg.train_dir, cfg.checkpoint)).to(device)

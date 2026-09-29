@@ -119,11 +119,20 @@ def predict_patients(pat_db, device, model, patch_size, patch_shape, output_dir=
 
 @torch.no_grad()
 def get_patient_prediction(
-    pat_path, device, model, patch_size, patch_shape=(48, 48, 48), margin=8, batch_size=10, normalization="Normal"
+    pat_path,
+    device,
+    model,
+    patch_size,
+    patch_shape=(48, 48, 48),
+    margin=8,
+    batch_size=10,
+    volume="init volume",
+    normalization="Linear",
 ):
     """Predicts one patient directory; returns the prediction (on the patient's grid), its affine and the
-    ground-truth aneurysm spheres."""
-    pat_dict = dio.read_patient_data_base([pat_path], volume="init volume", normalize=normalization)[0]
+    ground-truth aneurysm spheres.
+    volume and normalization must be those the model was trained with (data.volume, data.normalize)."""
+    pat_dict = dio.read_patient_data_base([pat_path], volume=volume, normalize=normalization)[0]
     affine, data = pat_dict["affine"], pat_dict["data"]
 
     spacing = np.linalg.norm(affine[:3, :3], axis=0)

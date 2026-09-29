@@ -32,3 +32,47 @@ def test_train_requires_data_dir_and_name():
     result = run("train.py")
 
     assert result.returncode != 0 and "Missing mandatory value" in result.stderr
+
+
+def test_predict_uses_the_volume_the_model_was_trained_on(tmp_path):
+    import nibabel as ni
+    import numpy as np
+    import pandas as pd
+    import torch
+    from hydra import compose, initialize_config_dir
+    from omegaconf import OmegaConf
+
+    from deepaneseg.utils import get_model
+
+    patient = tmp_path / "P0001"  # raw volume only: no skull stripping was run
+    patient.mkdir()
+    ni.save(
+        ni.Nifti1Image(np.random.default_rng(0).random((20, 20, 20)).astype(np.float32), np.eye(4)),
+        patient / "volume.nii.gz",
+    )
+    pd.DataFrame({"x": [9.0, 11.0], "y": [10.0, 10.0], "z": [10.0, 10.0]}).to_csv(patient / "F.csv", index=False)
+    (patient / "config.json").write_text(json.dumps({"init volume": "volume.nii.gz", "pts aneurysm": "F.csv"}))
+
+    with initialize_config_dir(config_dir=str(SCRIPTS.parent / "configs"), version_base="1.3"):
+        cfg = compose(
+            "train",
+            [
+                f"data_dir={tmp_path}",
+                "name=exp",
+                "model.f_maps=4",
+                "data.patch_shape=[16,16,16]",
+                "data.patch_size=[16,16,16]",
+            ],
+        )
+    train_dir = tmp_path / "0Work" / "exp"
+    (train_dir / ".hydra").mkdir(parents=True)
+    OmegaConf.save(cfg, train_dir / ".hydra" / "config.yaml")
+    (tmp_path / "0Work" / "split_pats.json").write_text(
+        json.dumps({"training list": [], "validation list": [], "testing list": [str(patient)]})
+    )
+    torch.save({"model_state_dict": get_model(cfg.model).state_dict()}, train_dir / "last_checkpoint.pytorch")
+
+    result = run("predict.py", f"train_dir={train_dir}", "margin=2", "batch_size=4")
+
+    assert result.returncode == 0, result.stderr[-2000:]
+    assert ni.load(train_dir / "prediction" / "test" / "P0001.nii.gz").shape == (20, 20, 20)
