@@ -21,10 +21,7 @@ def remove_skull(patient_dir, output_name):
     with open(config_file) as f:
         config = json.load(f)
     ni_vol = ni.load(os.path.join(patient_dir, config["init volume"]))
-    vol = np.asarray(ni_vol.dataobj).astype(np.float32)
-
-    vol = vs.remove_skull_mask(vol) * vol
-    vol /= np.max(vol)
+    vol = vs.skull_strip(np.asarray(ni_vol.dataobj))
 
     ni.Nifti1Image(vol, ni_vol.affine).to_filename(os.path.join(patient_dir, output_name))
     config["noskull volume"] = output_name
