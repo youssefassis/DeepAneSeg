@@ -104,36 +104,25 @@ def get_ball(r):
     return ((x * x + y * y + z * z) <= r * r).astype(np.uint8)
 
 
+def fill_between_edges(edges):
+    """
+    For each line along the first axis, fills every voxel between its first and last edge voxels (inclusive).
+    edges: boolean volume; returns a uint8 mask of the same shape.
+    """
+    has_edge = edges.any(axis=0)
+    first = np.argmax(edges, axis=0)
+    last = edges.shape[0] - 1 - np.argmax(edges[::-1], axis=0)
+    x = np.arange(edges.shape[0]).reshape((-1,) + (1,) * (edges.ndim - 1))
+    return ((x >= first) & (x <= last) & has_edge).astype(np.uint8)
+
+
 def remove_skull_mask(vol, percent=60):
-    # compute gradient map and threshold it to its 80th percentile
+    """
+    Brain mask: the volume between the outermost strong edges of each line (gradient magnitude above its
+    percent-th percentile), eroded to remove the skull.
+    """
     edges = sndi.gaussian_gradient_magnitude(vol, sigma=3)
-    idx = np.nonzero(edges >= np.percentile(edges, percent))
-    # sorts the indices so that we can review lines in the volume
-    # according to their y and z coordinates in the
-    # correct order (y first in increasing order, and then z):
-    # x coordinates are naturally ordered so that, for a given (y,z) pair,
-    # the first encountered x value is the column index of the first non-null
-    # voxel along the (y,z) line, and the last encountered value is the last
-    # non voxel along this line
-    idx = sorted(np.vstack(idx).T, key=lambda x: (x[1], x[2]))
-    # review lines according to (y,z) coordinates
-    # get first and last non-null voxel and then, set all voxels between
-    # these two extremities to 1 in the mask
-    g = (i for i in idx)
-    mask = np.zeros(vol.shape)
-    try:
-        n = 1
-        j0, j1, j2 = next(g)
-        while True:
-            m = j0
-            i1, i2 = j1, j2
-            while i1 == j1 and i2 == j2:
-                M = j0
-                j0, j1, j2 = next(g)
-                n += 1
-            mask[m:M, i1, i2] = 1
-    except StopIteration:
-        pass
+    mask = fill_between_edges(edges >= np.percentile(edges, percent))
 
     # erode this mask to remove the skull
     footprint = get_ball(2)

@@ -88,3 +88,19 @@ def test_selected_points_are_voxel_centers_consistent_with_patch_sampling():
     np.testing.assert_allclose(point, (vox2met @ [12, 7, 20, 1])[:3])
     patch, _ = get_patch(vol, vox2met, point, size=[1.2, 1.2, 1.8], dim=3)  # 3 voxels at the volume resolution
     assert patch[1, 1, 1] == pytest.approx(1.0)
+
+
+def test_fill_between_edges_fills_each_line_inclusively():
+    from deepaneseg.volume.selection import fill_between_edges
+
+    edges = np.zeros((10, 3, 2), dtype=bool)
+    edges[[3, 7], 0, 0] = True  # line with two edges
+    edges[5, 1, 0] = True  # line with a single edge voxel
+    edges[[0, 9], 2, 1] = True  # last line, spanning the whole axis
+
+    mask = fill_between_edges(edges)
+
+    assert np.flatnonzero(mask[:, 0, 0]).tolist() == [3, 4, 5, 6, 7]
+    assert np.flatnonzero(mask[:, 1, 0]).tolist() == [5]
+    assert mask[:, 2, 1].all()
+    assert mask.sum() == 5 + 1 + 10  # untouched lines stay empty
