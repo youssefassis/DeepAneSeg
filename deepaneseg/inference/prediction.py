@@ -10,201 +10,135 @@ import torch
 import deepaneseg.data.io as dio
 
 
-def calculate_origin_offset(new_spacing, old_spacing):
-    return np.subtract(new_spacing, old_spacing) / 2
-
-
-def sitk_resample_to_spacing(image, new_spacing=(1.0, 1.0, 1.0), interpolator=sitk.sitkLinear, default_value=0.0):
-    zoom_factor = np.divide(image.GetSpacing(), new_spacing)
-    new_size = np.asarray(np.ceil(np.round(np.multiply(zoom_factor, image.GetSize()), decimals=5)), dtype=np.int16)
-    offset = calculate_origin_offset(new_spacing, image.GetSpacing())
-    reference_image = sitk_new_blank_image(
-        size=new_size,
-        spacing=new_spacing,
-        direction=image.GetDirection(),
-        origin=image.GetOrigin() + offset,
-        default_value=default_value,
-    )
-    return sitk_resample_to_image(image, reference_image, interpolator=interpolator, default_value=default_value)
-
-
-def sitk_resample_to_image(
-    image, reference_image, default_value=0.0, interpolator=sitk.sitkLinear, transform=None, output_pixel_type=None
-):
-    if transform is None:
-        transform = sitk.Transform()
-        transform.SetIdentity()
-    if output_pixel_type is None:
-        output_pixel_type = image.GetPixelID()
-    resample_filter = sitk.ResampleImageFilter()
-    resample_filter.SetInterpolator(interpolator)
-    resample_filter.SetTransform(transform)
-    resample_filter.SetOutputPixelType(output_pixel_type)
-    resample_filter.SetDefaultPixelValue(default_value)
-    resample_filter.SetReferenceImage(reference_image)
-    return resample_filter.Execute(image)
-
-
-def sitk_new_blank_image(size, spacing, direction, origin, default_value=0.0):
-    image = sitk.GetImageFromArray(np.ones(size, dtype=float).T * default_value)
-    image.SetSpacing(spacing)
-    image.SetDirection(direction)
-    image.SetOrigin(origin)
+def _to_sitk(data, spacing, origin=(0.0, 0.0, 0.0)):
+    """numpy volume indexed (x, y, z) -> SimpleITK image (which stores arrays as (z, y, x))"""
+    image = sitk.GetImageFromArray(np.ascontiguousarray(np.transpose(data)))
+    image.SetSpacing([float(s) for s in spacing])
+    image.SetOrigin([float(o) for o in origin])
     return image
+
+
+def _from_sitk(image):
+    return np.transpose(sitk.GetArrayFromImage(image))
+
+
+def _resample(image, shape, spacing, origin, interpolation, default_value):
+    interpolators = {"linear": sitk.sitkLinear, "nearest": sitk.sitkNearestNeighbor}
+    if interpolation not in interpolators:
+        raise ValueError(f"'interpolation' must be one of {sorted(interpolators)}, got '{interpolation}'")
+    reference = sitk.Image([int(n) for n in shape], image.GetPixelID())
+    reference.SetSpacing([float(s) for s in spacing])
+    reference.SetOrigin([float(o) for o in origin])
+    return _from_sitk(sitk.Resample(image, reference, sitk.Transform(), interpolators[interpolation], default_value))
 
 
 def resample_to_spacing(data, spacing, target_spacing, interpolation="linear", default_value=0.0):
-    image = data_to_sitk_image(data, spacing=spacing)
-    if interpolation == "linear":
-        interpolator = sitk.sitkLinear
-    elif interpolation == "nearest":
-        interpolator = sitk.sitkNearestNeighbor
-    else:
-        raise ValueError(
-            "'interpolation' must be either 'linear' or 'nearest'. '{}' is not recognized".format(interpolation)
-        )
-    resampled_image = sitk_resample_to_spacing(
-        image, new_spacing=target_spacing, interpolator=interpolator, default_value=default_value
+    """
+    Resamples data (voxel size spacing, in mm) to voxel size target_spacing, covering the same field of view:
+    the outer corners of the first voxels coincide. Undo with resample_to_grid.
+    """
+    spacing, target_spacing = np.asarray(spacing, float), np.asarray(target_spacing, float)
+    shape = np.ceil(np.round(np.asarray(data.shape) * spacing / target_spacing, 5)).astype(int)
+    origin = (target_spacing - spacing) / 2  # in the frame where data's first voxel is centred at 0
+    return _resample(_to_sitk(data, spacing), shape, target_spacing, origin, interpolation, default_value)
+
+
+def resample_to_grid(data, spacing, target_shape, target_spacing, interpolation="linear", default_value=0.0):
+    """
+    Inverse of resample_to_spacing: resamples data (voxel size spacing) back onto the original grid of shape
+    target_shape and voxel size target_spacing, so that the result can be saved with the original affine.
+    """
+    spacing, target_spacing = np.asarray(spacing, float), np.asarray(target_spacing, float)
+    origin = (spacing - target_spacing) / 2  # data's first voxel centre, in the target grid's frame
+    return _resample(
+        _to_sitk(data, spacing, origin), target_shape, target_spacing, (0, 0, 0), interpolation, default_value
     )
-    return sitk_image_to_data(resampled_image)
 
 
-def data_to_sitk_image(data, spacing=(1.0, 1.0, 1.0)):
-    if len(data.shape) == 3:
-        data = np.rot90(data, 1, axes=(0, 2))
-    image = sitk.GetImageFromArray(data)
-    image.SetSpacing(np.asarray(spacing, dtype=float))
-    return image
-
-
-def sitk_image_to_data(image):
-    data = sitk.GetArrayFromImage(image)
-    if len(data.shape) == 3:
-        data = np.rot90(data, -1, axes=(0, 2))
-    return data
-
-
-def ndl_patch_wise_prediction(device, model, data, margin=0, batch_size=1, patient_name=""):
+def patch_wise_prediction(device, model, data, patch_shape, margin=0, batch_size=1, patient_name=""):
     """
-    :param batch_size:
-    :param model:
-    :param data:
-    :param overlap:
-    :return:
+    Predicts a whole volume with a model working on patches of patch_shape voxels.
+    Patches overlap by 2 * margin voxels; only their central part (without margin) is kept. The volume is padded
+    (with its minimum value) so that every voxel, including the borders, is predicted exactly once.
     """
-    patch_shape = [48, 48, 48]  # list(map(int,model.input.shape[-3:]))
-    image_shape = np.array(data.shape)
-    # compute indices
-    if isinstance(margin, int):
-        margin = np.asarray([margin] * len(image_shape))
-    delta = np.array(patch_shape) - 2 * margin
-    n_idx = np.floor((image_shape - 2 * margin) / delta).astype(np.int64)
-    overflow = image_shape - (n_idx * delta + 2 * margin)
-    start = overflow // 2
-    indices = np.mgrid[: n_idx[0], : n_idx[1], : n_idx[2]].reshape((3, -1)).T
-    indices = indices * delta + start
-    output = np.zeros(data.shape)
+    patch_shape = np.asarray(patch_shape, dtype=int)
+    margin = np.broadcast_to(np.asarray(margin, dtype=int), patch_shape.shape)
+    core = patch_shape - 2 * margin
+    if np.any(core <= 0):
+        raise ValueError(f"margin {margin.tolist()} leaves no voxel to predict in patches of {patch_shape.tolist()}")
 
-    print(f"{indices.shape[0]} patches to process")
-    loop = tqdm(
-        range(0, indices.shape[0], batch_size),
-        leave=True,
-        unit="batch",
-        total=int(math.ceil(indices.shape[0] / batch_size)),
+    image_shape = np.asarray(data.shape)
+    n_tiles = np.ceil(image_shape / core).astype(int)
+    pad_after = n_tiles * core - image_shape + margin
+    padded = np.pad(data, list(zip(margin, pad_after)), mode="constant", constant_values=data.min())
+    output = np.zeros(n_tiles * core)
+
+    starts = np.mgrid[: n_tiles[0], : n_tiles[1], : n_tiles[2]].reshape((3, -1)).T * core
+    loop = tqdm(range(0, len(starts), batch_size), leave=True, unit="batch", total=math.ceil(len(starts) / batch_size))
+    loop.set_description(f"Prediction: {patient_name}")
+    for j in loop:
+        idx = starts[j : j + batch_size]
+        batch = np.stack([padded[(np.newaxis,) + tuple(slice(s, s + p) for s, p in zip(i, patch_shape))] for i in idx])
+        prediction = model(torch.from_numpy(batch).float().to(device)).detach().cpu().numpy()
+        for i, p in zip(idx, prediction):
+            output[tuple(slice(s, s + c) for s, c in zip(i, core))] = p[0][
+                tuple(slice(m, m + c) for m, c in zip(margin, core))
+            ]
+
+    return output[tuple(slice(0, n) for n in image_shape)]
+
+
+def predict_patient(pat_dict, device, model, patch_size, patch_shape, output_dir, margin=0, batch_size=1):
+    """
+    Predicts one patient and writes the (sigmoid) prediction, on the patient's voxel grid, to
+    <output_dir>/<patient>.nii.gz.
+    :param pat_dict: patient data, as returned by data.io.read_patient_data_base (including the 'dir' key)
+    :param patch_size: size in mm of a patch, and patch_shape its size in voxels (as used for training)
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    name = os.path.basename(pat_dict["dir"])
+    affine, data = pat_dict["affine"], pat_dict["data"]
+    print(f"Processing {name}")
+
+    spacing = np.linalg.norm(affine[:3, :3], axis=0)
+    work_spacing = np.asarray(patch_size, float) / np.asarray(patch_shape)
+    work = resample_to_spacing(data, spacing, work_spacing)
+    prediction = patch_wise_prediction(
+        device, model, work, patch_shape, margin=margin, batch_size=batch_size, patient_name=name
     )
-    for j in loop:  # range(0,indices.shape[0],batch_size):
-        k = min(j + batch_size, len(indices))
-        idx = indices[j:k]
-        batch = np.asarray(
-            [
-                data[
-                    np.newaxis, i[0] : i[0] + patch_shape[0], i[1] : i[1] + patch_shape[1], i[2] : i[2] + patch_shape[2]
-                ]
-                for i in idx
-            ]
-        )
-        batch = torch.from_numpy(batch).float()
-        prediction = model(batch.to(device))
-        for i, p in zip(idx, prediction.detach().cpu().numpy()):
-            s = i + margin
-            # reconstruct shape
-            output[s[0] : s[0] + delta[0], s[1] : s[1] + delta[1], s[2] : s[2] + delta[2]] = p[
-                0, margin[0] : margin[0] + delta[0], margin[1] : margin[1] + delta[1], margin[2] : margin[2] + delta[2]
-            ]
-        loop.set_description(f"Prediction: {patient_name}")
+    prediction = resample_to_grid(prediction, work_spacing, data.shape, spacing)
 
-    return output
-
-
-def ndl_run_validation_case(pat_dict, device, size, output_dir, model, margin=0, batch_size=1):
-    """
-    Runs a test case and writes predicted images to file.
-    :param pat_dict: info about the patient data. Dictionary as returned by data.io.read_patient_data_base (including the 'dir' key)
-    :param size: 3-tuple that provides the size in mm of a patch (patch shape will be extracted from model info)
-    :param output_dir: Where to write prediction images.
-    :param output_label_map: If True, will write out a single image with one or more labels. Otherwise outputs
-    the (sigmoid) prediction values from the model.
-    :param threshold: If output_label_map is set to True, this threshold defines the value above which is
-    considered a positive result and will be assigned a label.
-    :param model: model to use for prediction
-    """
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    affine = pat_dict["affine"]
-    test_data = pat_dict["data"]
-    output_file = os.path.join(output_dir, os.path.basename(pat_dict["dir"]) + ".nii.gz")
-    print(f"Processing {os.path.basename(pat_dict['dir'])}")
-
-    # reshape input volume
-    old_spacing = np.linalg.norm(affine, axis=0)[:3]
-    patch_shape = np.array([48, 48, 48])  # np.array([int(dim) for dim in model.input.shape[-3:]])
-    new_spacing = np.array(size) / patch_shape
-    tvol = resample_to_spacing(test_data, old_spacing, new_spacing)
-
-    prediction = ndl_patch_wise_prediction(device, model=model, data=tvol, margin=margin, batch_size=batch_size)
-
-    timage = resample_to_spacing(prediction, new_spacing, old_spacing)
-
-    image = nib.Nifti1Image(timage, affine)
-    image.to_filename(output_file)
+    nib.Nifti1Image(prediction, affine).to_filename(os.path.join(output_dir, name + ".nii.gz"))
 
 
 @torch.no_grad()
-def ndl_run_validation_cases(pat_db, device, model, patch_size, output_dir=".", margin=0, batch_size=1):
+def predict_patients(pat_db, device, model, patch_size, patch_shape, output_dir=".", margin=0, batch_size=1):
     for p in pat_db:
-        ndl_run_validation_case(
-            p, device, output_dir=output_dir, model=model, size=patch_size, margin=margin, batch_size=batch_size
-        )
+        predict_patient(p, device, model, patch_size, patch_shape, output_dir, margin=margin, batch_size=batch_size)
 
 
 @torch.no_grad()
 def get_patient_prediction(
-    pat_path, device, model, patch_size, output_dir=".", margin=8, batch_size=10, normalization="Normal"
+    pat_path, device, model, patch_size, patch_shape=(48, 48, 48), margin=8, batch_size=10, normalization="Normal"
 ):
+    """Predicts one patient directory; returns the prediction (on the patient's grid), its affine and the
+    ground-truth aneurysm spheres."""
     pat_dict = dio.read_patient_data_base([pat_path], volume="init volume", normalize=normalization)[0]
+    affine, data = pat_dict["affine"], pat_dict["data"]
 
-    affine = pat_dict["affine"]
-    test_data = pat_dict["data"]
-    print(f"Processing {os.path.basename(pat_dict['dir'])}")
-
-    # reshape input volume
-    old_spacing = np.linalg.norm(affine, axis=0)[:3]
-    patch_shape = np.array([48, 48, 48])  # np.array([int(dim) for dim in model.input.shape[-3:]])
-    new_spacing = np.array(patch_size) / patch_shape
-    tvol = resample_to_spacing(test_data, old_spacing, new_spacing)
-
-    prediction = ndl_patch_wise_prediction(
+    spacing = np.linalg.norm(affine[:3, :3], axis=0)
+    work_spacing = np.asarray(patch_size, float) / np.asarray(patch_shape)
+    work = resample_to_spacing(data, spacing, work_spacing)
+    prediction = patch_wise_prediction(
         device,
-        model=model,
-        data=tvol,
+        model,
+        work,
+        patch_shape,
         margin=margin,
         batch_size=batch_size,
         patient_name=os.path.basename(pat_dict["dir"]),
     )
+    prediction = resample_to_grid(prediction, work_spacing, data.shape, spacing)
 
-    prediction = resample_to_spacing(prediction, new_spacing, old_spacing)
-
-    # Get truth
     spheres = dio.points_to_spheres(pat_dict["aneurysms"])
-    return prediction, affine, spheres  # cm, tp_diam, fn_diam #scores#timage, truth
+    return prediction, affine, spheres
