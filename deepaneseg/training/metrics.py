@@ -37,9 +37,22 @@ class IoUCoefficient:
         return iou
 
 
+def cohen_kappa(inputs, targets, smooth=0.0):
+    """
+    Cohen's kappa between (soft) binary predictions and targets, computed over all voxels:
+    2 * (TP - E) / (S_t + S_p - 2 * E), with S the sums and E = S_t * S_p / N the TP expected by chance.
+    """
+    n = torch.numel(inputs)
+    tp = (inputs * targets).sum()
+    chance_tp = targets.sum() * inputs.sum() / n
+    numerator = 2 * (tp - chance_tp)
+    denominator = targets.sum() + inputs.sum() - 2 * chance_tp
+    return (numerator + smooth) / (denominator + smooth)
+
+
 class Kappa:
     """
-    Computes Kappa score
+    Computes Cohen's Kappa score
     """
 
     def __init__(self):
@@ -47,11 +60,7 @@ class Kappa:
 
     @torch.no_grad()
     def __call__(self, inputs, targets, smooth=1e-8):
-        N = torch.numel(inputs)
-        numerator = 2 * (inputs * targets).sum() - (targets.sum() * inputs.sum()) / N
-        disc = targets.sum() + inputs.sum() - 2 * (inputs * targets).sum() / N
-        kappa = (numerator + smooth) / (disc + smooth)
-        return kappa
+        return cohen_kappa(inputs, targets, smooth=smooth)
 
 
 def cm(y, t):  # , num_classes=1):
