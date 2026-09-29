@@ -72,6 +72,7 @@ def get_patches(pat_db, pos_dup=50, batch_size=8):
             "status": True,
         }
         for d in pat_db
+        if d["aneurysms"] is not None  # healthy patients only provide negative patches
         for p in points_to_spheres(d["aneurysms"])[:, :3]
     ]
     patches = p_list + a_list * pos_dup

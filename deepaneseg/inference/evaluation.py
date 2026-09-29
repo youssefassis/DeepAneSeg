@@ -50,6 +50,9 @@ def confusion_matrix(pred, vox2met, spheres, min_size=None, tp_proportion=0.3):
     fn_vox = np.sum(hist_cross[0, 1:])
     Cmat = np.array([[tp_vox, fp_vox], [fn_vox, tn_vox]])
 
+    if ncc_truth == 0:  # no aneurysm: every detection is a false positive
+        return 0, 0, ncc_pred, Cmat
+
     # removes the background component
     hist_truth = hist_truth[1:]
     hist_pred = hist_pred[1:]
