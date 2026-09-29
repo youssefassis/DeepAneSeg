@@ -66,6 +66,15 @@ To add an alternative (for example another scheduler), add a file to the group, 
 Run the commands with `uv run` from the repository folder, or directly (`deepaneseg-train …`) from any folder once
 `.venv` is activated or the package is installed with pip.
 
+**0. Dataset conversion:** a dataset of scans with aneurysm label masks can be converted to the layout above. The
+defaults match the ADAM challenge (`<case>/orig/TOF.nii.gz`, `<case>/aneurysms.nii.gz`, where 2 marks treated
+aneurysms); other datasets only need their own `scan` and `mask` patterns. Each aneurysm becomes a two-point
+annotation, and `Data_dir/cases.csv` maps the patients to the original cases.
+```
+uv run deepaneseg-prepare source_dir=ADAM data_dir=Data_dir labels=[1]
+uv run deepaneseg-prepare source_dir=my_data data_dir=Data_dir scan='scans/{case}.nii.gz' mask='masks/{case}.nii.gz'
+```
+
 **1. Data preparation:** skull-strip the volumes, then select the negative patch centers.
 ```
 uv run deepaneseg-remove-skull data_dir=Data_dir
