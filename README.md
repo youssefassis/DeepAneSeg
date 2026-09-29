@@ -31,29 +31,29 @@ The project is structured as the following:<br>
     - ndl_config.json<br>
 
 # Usage
-Prepare the dataset in the following format for easy use of the code:<br>
-cd ressources/scripts<br>
+Prepare the dataset in the format described above. All commands are run from the repository root.<br>
+
 **1. Data Preparation:**<br>
-   run python3 removeSkull.py: which generates noskull.nii.gz files for each patient in the dataset (Data_dir).<br>
-   run python3 extractPoints.py: generate points.csv file for each patient in the dataset.<br>
+   run python3 scripts/remove_skull.py: which generates noskull.nii.gz files for each patient in the dataset (Data_dir).<br>
+   run python3 scripts/extract_points.py: generate points.csv file for each patient in the dataset.<br>
 
 **2. Training preparation:**<br>
-   Generate the files *BaseConfig/config.json* and *BaseConfig/split_data.json*, which contain the splits of data (train, valid and test).<br>
-   run: python3 ndl_PreprocessData.py
+   Generate the files *BaseConfig/config.json* and *BaseConfig/split_data.json*, which contain the splits of data (train, valid and test).<br>
+   run: python3 scripts/preprocess_data.py
 
 **3. Generate a personalized training:**<br>
-   Create a custom training configuration in *Train_dir/ndl_config.json*.<br>
-   run: python3 ndl_NewTrain.py
+   Create a custom training configuration in *Train_dir/ndl_config.json*.<br>
+   run: python3 scripts/new_train.py
 
 **4. Training:**<br>
-   Start the training and validation phase based on the generated configuration in path/to/Train_dir/ndl_config.json<br>
-   ./ndl_train.py path/to/Train_dir
+   Start the training and validation phase based on the generated configuration in path/to/Train_dir/ndl_config.json<br>
+   python3 scripts/train.py path/to/Train_dir
 
 **5. Testing:**<br>
-   ./ndl_predict.py path/to/Train_dir
+   python3 scripts/predict.py path/to/Train_dir
 
 # Environment setting
-Change and then add the **neurodl.pth** file to your virtual environment (venv/lib/python3.8/site-packages/neurodl.pth)
+The code lives in the `deepaneseg` package. Make it importable by editing the **neurodl.pth** file so it contains the absolute path of this repository, then copy it into your virtual environment (e.g. venv/lib/python3.8/site-packages/neurodl.pth)
 
 ### Requirements
 * CUDA 11.0  
