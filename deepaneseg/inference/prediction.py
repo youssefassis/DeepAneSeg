@@ -73,7 +73,7 @@ def patch_wise_prediction(device, model, data, patch_shape, margin=0, batch_size
     n_tiles = np.ceil(image_shape / core).astype(int)
     pad_after = n_tiles * core - image_shape + margin
     padded = np.pad(data, list(zip(margin, pad_after)), mode="constant", constant_values=data.min())
-    output = np.zeros(n_tiles * core)
+    output = np.zeros(n_tiles * core, dtype=np.float32)
 
     starts = np.mgrid[: n_tiles[0], : n_tiles[1], : n_tiles[2]].reshape((3, -1)).T * core
     loop = tqdm(range(0, len(starts), batch_size), leave=True, unit="batch", total=math.ceil(len(starts) / batch_size))

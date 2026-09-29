@@ -77,6 +77,8 @@ uv run python scripts/preprocess_data.py data_dir=Data_dir          # split=[0.7
 ```
 
 **3. Training:** outputs go to `Data_dir/0Work/my_training`; running the same command again resumes training.
+The training and validation volumes are kept in memory as float32, about 4 bytes per voxel (150 MiB for a
+512×512×150 scan).
 ```
 uv run python scripts/train.py data_dir=Data_dir name=my_training
 ```
