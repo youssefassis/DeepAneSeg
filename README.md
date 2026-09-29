@@ -129,7 +129,8 @@ host. `--shm-size` gives the data-loading workers enough shared memory, and `--u
 output files with your own user.
 
 # Citation
-If you find this repository useful in your research, please consider citing:
+If you find this repository useful in your research, please consider citing the paper below. The same reference
+is available from "Cite this repository" on GitHub (`CITATION.cff`).
 ```
 @inproceedings{assis2021efficient,
   title={An efficient data strategy for the detection of brain aneurysms from MRA with deep learning},
