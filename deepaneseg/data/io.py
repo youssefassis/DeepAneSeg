@@ -231,13 +231,12 @@ def fcsv2csv(fcsv_file):
 
 
 def extract_points_from_patient(patient, r=20, nb_points=100, outfile="points.csv", random_points=False):
-    os.chdir(patient)
     print("Load volume from disk: " + patient)
-    with open("config.json", "r") as f:
+    with open(os.path.join(patient, "config.json"), "r") as f:
         d = json.load(f)
-    vol, vox2met = read_nii_from_file(d["noskull volume"])
+    vol, vox2met = read_nii_from_file(os.path.join(patient, d["noskull volume"]))
     print("Extracting points")
-    forbidden_points = read_points_from_csv(d["pts aneurysm"])
+    forbidden_points = read_points_from_csv(os.path.join(patient, d["pts aneurysm"]))
     fp = points_to_spheres(forbidden_points)[:, :-1]  # drop radii
     q = None
     if random_points:
@@ -285,6 +284,7 @@ def extract_points_from_patient(patient, r=20, nb_points=100, outfile="points.cs
         points = pd.concat([ps, qs])
     else:
         points = ps
+    outfile = os.path.join(patient, outfile)
     points.to_csv(outfile)
     csv2fcsv(outfile)
 

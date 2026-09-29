@@ -94,13 +94,14 @@ def test_fcsv_round_trip_keeps_coordinates(tmp_path):
 
 
 def test_extract_points_from_patient_writes_vessel_and_parenchyma_points(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)  # extract_points_from_patient changes directory
+    monkeypatch.chdir(tmp_path.parent)  # a relative patient path must not depend on the working directory
     vol = np.random.default_rng(0).random((40, 40, 40)).astype(np.float32)
     ni.save(ni.Nifti1Image(vol, HALF_MM), tmp_path / "noskull.nii.gz")
     pd.DataFrame({"x": [9.0, 11.0], "y": [10.0, 10.0], "z": [10.0, 10.0]}).to_csv(tmp_path / "F.csv", index=False)
     (tmp_path / "config.json").write_text(json.dumps({"noskull volume": "noskull.nii.gz", "pts aneurysm": "F.csv"}))
 
-    dio.extract_points_from_patient(str(tmp_path), r=4, nb_points=5)
+    dio.extract_points_from_patient(tmp_path.name, r=4, nb_points=5)
+    dio.extract_points_from_patient(tmp_path.name, r=4, nb_points=5)  # a second patient would fail after a chdir
 
     points = pd.read_csv(tmp_path / "points.csv")
     assert set(points["type"]) == {"Vessel", "Parenchyma"}
