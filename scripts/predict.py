@@ -34,7 +34,7 @@ def main():
 
     logger = get_logger('Model')
 
-    model = load_model(config ,logger)
+    model = load_model(config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     logger.info(f"Sending the model to '{device}'")

@@ -4,6 +4,8 @@ import numpy as np
 import torch
 from torch import optim
 
+from deepaneseg.models.models import UNet3D, Proposition1, Proposition2, Proposition3
+
 def save_checkpoint(state, is_best, checkpoint_dir, logger=None):
     """Saves model and training parameters at '{checkpoint_dir}/last_checkpoint.pytorch'.
     If is_best==True saves '{checkpoint_dir}/best_checkpoint.pytorch' as well.
@@ -55,11 +57,11 @@ def load_checkpoint(checkpoint_path, model, optimizer=None,
 
     return state
 
-def load_model(config, logger):
+def load_model(config):
     if not os.path.exists(config["model_file"]):
         raise IOError(f"Checkpoint '{config['model_file']}' does not exist")
-    model = get_model(config, logger)
-    model.load_state_dict(torch.load(config['model_file'])['model_state_dict'])
+    model = get_model(config)
+    model.load_state_dict(torch.load(config['model_file'], map_location='cpu')['model_state_dict'])
     return model
 
 loggers = {}
@@ -156,18 +158,10 @@ def create_lr_scheduler(optimizer, config):
 
 def get_model(config, default_init=None, device='cpu'):
     logger = get_logger('Model creation')
-    if config["model"] == "unet3d":
-#        from testUNET import  UNet3D
-        from model import Proposition1 as UNet3D
-        model = UNet3D()
-    elif config["model"] == "Proposition2":
-        from model import Proposition2
-        model = Proposition2()
-    elif config["model"] == "Proposition3":
-        from proposition3 import Proposition3Deepsupervision as Proposition3
-        model = Proposition3()
-    else:
-        raise ValueError(f"Unsupported model '{config['model']}'")
+    models = {"unet3d": UNet3D, "Proposition1": Proposition1, "Proposition2": Proposition2, "Proposition3": Proposition3}
+    if config["model"] not in models:
+        raise ValueError(f"Unsupported model '{config['model']}', expected one of {sorted(models)}")
+    model = models[config["model"]]()
 
     
     logger.info(f"The model '{config['model']}' was chosen to be trained")
