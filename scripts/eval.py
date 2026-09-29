@@ -1,13 +1,13 @@
-import Data.IO as dio
-import Volume.Edition as ve
-import Volume.Patch as vp
-import Volume.Selection as vs
+import deepaneseg.data.io as dio
+import deepaneseg.volume.edition as ve
+import deepaneseg.volume.patch as vp
+import deepaneseg.volume.selection as vs
 
 import skimage.morphology as skimo
 import skimage.measure as skime
 import numpy as np
 import os
-import scripts.Evaluation as DLe
+import deepaneseg.inference.evaluation as DLe
 import json
 
 base_dir = '/srv/storage/tangram@talc-data2.nancy.grid5000.fr/yassis/Data/ADAM/'

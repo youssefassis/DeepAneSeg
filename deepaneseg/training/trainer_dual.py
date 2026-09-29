@@ -1,10 +1,10 @@
 import os
 import torch
 from tqdm import tqdm
-from utils  import GradualWarmupScheduler
+from deepaneseg.utils import GradualWarmupScheduler
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from utils import get_logger, RunningAverage, save_checkpoint, load_checkpoint
+from deepaneseg.utils import get_logger, RunningAverage, save_checkpoint, load_checkpoint
 from prefetch_generator import BackgroundGenerator
 logger = get_logger('Model Trainer')
 

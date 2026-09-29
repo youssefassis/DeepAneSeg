@@ -2,11 +2,11 @@ import torch, random
 import numpy as np
 
 from torch.utils.data import DataLoader
-from utils import get_logger
+from deepaneseg.utils import get_logger
 
-from Data.Generators import generateTransforms
-from Data.IO import points_to_spheres
-import Volume.Patch as vp
+from deepaneseg.data.generators import generateTransforms
+from deepaneseg.data.io import points_to_spheres
+import deepaneseg.volume.patch as vp
 
 logger = get_logger("Data Preparation")
 def get_number_of_steps(n_samples, batch_size):

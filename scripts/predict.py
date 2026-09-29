@@ -3,11 +3,11 @@ import os
 import sys
 import json
 
-import Data.IO as dio
+import deepaneseg.data.io as dio
 import torch
 
-from utils import get_logger, load_model, get_number_of_learnable_parameters
-from prediction import ndl_run_validation_cases
+from deepaneseg.utils import get_logger, load_model, get_number_of_learnable_parameters
+from deepaneseg.inference.prediction import ndl_run_validation_cases
 
 def main():
     d = sys.argv[1]

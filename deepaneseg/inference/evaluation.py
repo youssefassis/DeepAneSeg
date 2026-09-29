@@ -1,4 +1,4 @@
-import Volume.Edition as ve
+import deepaneseg.volume.edition as ve
 import numpy as np
 import skimage.measure as skme
 import skimage.morphology as skmo

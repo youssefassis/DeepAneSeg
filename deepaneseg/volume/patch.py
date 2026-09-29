@@ -1,8 +1,8 @@
 import numpy as np
 import scipy.ndimage as sndi
 import scipy.optimize as sopt
-import Volume.Edition as ved
-import Data.IO as dio
+import deepaneseg.volume.edition as ved
+import deepaneseg.data.io as dio
 from skimage.util  import random_noise
 import time
 
