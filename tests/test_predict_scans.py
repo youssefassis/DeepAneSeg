@@ -47,7 +47,7 @@ def test_save_detections_writes_csv_and_slicer_markups(tmp_path):
 @pytest.fixture
 def trained(tmp_path):
     """A tiny untrained model with its saved training configuration."""
-    with initialize_config_dir(config_dir=str(ROOT / "configs"), version_base="1.3"):
+    with initialize_config_dir(config_dir=str(ROOT / "deepaneseg" / "configs"), version_base="1.3"):
         cfg = compose(
             "train",
             [
@@ -67,7 +67,7 @@ def trained(tmp_path):
 
 def predict(*args):
     return subprocess.run(
-        [sys.executable, str(ROOT / "scripts" / "predict.py"), *map(str, args)], capture_output=True, text=True
+        [sys.executable, "-m", "deepaneseg.cli.predict", *map(str, args)], capture_output=True, text=True
     )
 
 

@@ -1,7 +1,6 @@
 import json
 import subprocess
 import sys
-from pathlib import Path
 
 import nibabel as ni
 import numpy as np
@@ -11,8 +10,6 @@ from omegaconf import OmegaConf
 
 from deepaneseg.data.io import read_aneurysm_spheres
 from deepaneseg.inference.evaluation import summarize_detections
-
-SCRIPTS = Path(__file__).parents[1] / "scripts"
 
 
 def make_patient(data_dir, name, aneurysm_points=None):
@@ -66,7 +63,7 @@ def test_evaluate_script_scores_the_test_predictions(tmp_path):
     ni.save(ni.Nifti1Image(np.full((20, 20, 20), 0.1), np.eye(4)), predictions / "P0002.nii.gz")
 
     result = subprocess.run(
-        [sys.executable, str(SCRIPTS / "evaluate.py"), f"train_dir={train_dir}"], capture_output=True, text=True
+        [sys.executable, "-m", "deepaneseg.cli.evaluate", f"train_dir={train_dir}"], capture_output=True, text=True
     )
 
     assert result.returncode == 0, result.stderr[-2000:]
@@ -87,7 +84,7 @@ def test_evaluate_script_reports_missing_predictions(tmp_path):
     )
 
     result = subprocess.run(
-        [sys.executable, str(SCRIPTS / "evaluate.py"), f"train_dir={train_dir}"], capture_output=True, text=True
+        [sys.executable, "-m", "deepaneseg.cli.evaluate", f"train_dir={train_dir}"], capture_output=True, text=True
     )
 
     assert result.returncode != 0 and "P0001" in result.stderr

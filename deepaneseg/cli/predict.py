@@ -1,9 +1,8 @@
-#!/usr/bin/env python3
-"""Predict with a trained model; configuration in configs/predict.yaml.
+"""Predict with a trained model; configuration in deepaneseg/configs/predict.yaml.
 
 Examples:
-    python scripts/predict.py train_dir=/data/0Work/exp1                      # test patients of the split
-    python scripts/predict.py train_dir=/data/0Work/exp1 input=scan.nii.gz    # any scan, or a folder of scans
+    deepaneseg-predict train_dir=/data/0Work/exp1                      # test patients of the split
+    deepaneseg-predict train_dir=/data/0Work/exp1 input=scan.nii.gz    # any scan, or a folder of scans
 Data and model settings come from the training's resolved configuration (<train_dir>/.hydra/config.yaml).
 For each case, writes the probability map <name>.nii.gz and the detections <name>_detections.csv (and .fcsv,
 for 3D Slicer).

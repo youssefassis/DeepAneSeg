@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
 """Select negative patch centers (on vessels and in the parenchyma) for every patient.
 
-Configuration in configs/extract_points.yaml. Example: python scripts/extract_points.py data_dir=/data
+Configuration in deepaneseg/configs/extract_points.yaml. Example: deepaneseg-extract-points data_dir=/data
 Writes <output> (CSV) and its 3D Slicer .fcsv counterpart in each patient folder.
 Requires the 'noskull volume' produced by remove_skull.py.
 """

@@ -1,10 +1,10 @@
 # Predicts with a trained model; data and model settings are read from the training's config
-train_dir: ???                    # training directory written by train.py
+train_dir: ???                    # training directory written by deepaneseg-train
 input: null                       # NIfTI scan or folder of scans; null: the test patients of the training's split
 output_dir: null                  # null: <train_dir>/prediction/test, or <train_dir>/prediction/scans for input
 checkpoint: last_checkpoint.pytorch
 volume: noskull volume            # key, in each patient's config.json, of the volume to predict on
-skull_strip: true                 # skull-strip input scans as remove_skull.py does, to match volume above
+skull_strip: true                 # skull-strip input scans as deepaneseg-remove-skull does, to match volume above
 threshold: 0.5                    # detections: connected components above this probability
 min_size: null                    # detections smaller than this, in voxels, are ignored; null keeps all
 margin: 8                         # voxels discarded at each patch border when stitching predictions
