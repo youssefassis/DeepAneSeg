@@ -6,7 +6,7 @@ import deepaneseg.data.io as dio
 import pandas as pd
 
 r = 20
-nbPoints = 100
+nb_points = 100
 
 patients = dio.fetch_patient_dirs("/home/yassis/Data")
 for pateint in patients:
@@ -18,16 +18,16 @@ for pateint in patients:
 	vol, vox2met = dio.read_nii_from_file(d['noskull volume'])
 
 	print(f'Extracting points')
-	fPoints=dio.read_points_from_csv(d['pts aneurysm'])
-	fp = dio.points_to_spheres(fPoints)[:,:-1] # drop centers
+	forbidden_points=dio.read_points_from_csv(d['pts aneurysm'])
+	fp = dio.points_to_spheres(forbidden_points)[:,:-1] # drop centers
 	T=np.percentile(vol[vol>0],95)
 	Tl=np.percentile(vol[vol>0],50)
 	Th=np.percentile(vol[vol>0],90)
 	print(f'\tVessels ', end='')
-	p=vs.selectPoints(vol,vox2met,thresLow=T,r=r,fPoints=fp,nbPoints=nbPoints,extractType='Vessels')
+	p=vs.select_points(vol,vox2met,thres_low=T,r=r,forbidden_points=fp,nb_points=nb_points,extract_type='Vessels')
 	print(f'{len(p)} points')
 	print(f'\tParenchyma ',end='')
-	q=vs.selectPoints(vol,vox2met,thresLow=Tl,thresHigh=Th,r=r,fPoints=np.vstack((fp,p)),nbPoints=nbPoints,extractType='Parenchyma')
+	q=vs.select_points(vol,vox2met,thres_low=Tl,thres_high=Th,r=r,forbidden_points=np.vstack((fp,p)),nb_points=nb_points,extract_type='Parenchyma')
 	print(f'{len(q)} points')
 
 	# export to csv using pandas

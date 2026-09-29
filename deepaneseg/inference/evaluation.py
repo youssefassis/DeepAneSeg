@@ -3,14 +3,14 @@ import numpy as np
 import skimage.measure as skme
 import skimage.morphology as skmo
 
-def confusion_matrix(pred,vox2met,spheres, min_size=None, TP_proportion=0.3):
+def confusion_matrix(pred,vox2met,spheres, min_size=None, tp_proportion=0.3):
     '''
     takes a (binary) prediction volume with its vox2met transform and a set of ground truth spheres
     returns the TP,FN,FP, Cmat(voxels) for this prediction
     The prediction is labelled to get predicted connected components (PCC). 
     The ground truth is generated as a set of ground truth spheres (GTS).
     The intersections between each GTS and each PCC are computed.
-    A TP is counted when an intersection is at least TP_proportion of either the GTS or the PCC volume
+    A TP is counted when an intersection is at least tp_proportion of either the GTS or the PCC volume
     A FN is counted when a GTS has no such intersection
     A FP is counted when a PCC has no such intersection
     Note that the case where 2 PCC intersection the same GTS has to be handled. For now we assume they both count for one TP
@@ -21,7 +21,7 @@ def confusion_matrix(pred,vox2met,spheres, min_size=None, TP_proportion=0.3):
     @vox2met: voxel 2 metric transform (see dio.read_nii_from_file)
     @spheres: ground truth spheres used to annotate aneurysms (see dio.points_to_spheres)
     @min_size: if not None, CC with a size smaller than min_size (in voxels) will be removed from prediction before computation
-    @TP_proportion: minimum intersection to consider a TP (proportion of ground truth sphere)
+    @tp_proportion: minimum intersection to consider a TP (proportion of ground truth sphere)
     '''
     # label CC in prediction
     label_pred=skme.label(pred.astype(np.uint8))
@@ -30,7 +30,7 @@ def confusion_matrix(pred,vox2met,spheres, min_size=None, TP_proportion=0.3):
     ncc_pred=np.max(label_pred.ravel())
 
     # label CC in truth volume
-    t = ve.getTruth(pred,vox2met,spheres)
+    t = ve.get_truth(pred,vox2met,spheres)
     ncc_truth = np.max(t.ravel())
 
     if ncc_pred==0: # no detection
@@ -60,7 +60,7 @@ def confusion_matrix(pred,vox2met,spheres, min_size=None, TP_proportion=0.3):
 
     # compute statistics
     # boolean array: h(i,j) is True iff PCC#i and GTS#j intersect as a TP
-    h=np.where(np.maximum(hist_cross/hist_truth,(hist_cross.T/hist_pred).T)>=TP_proportion, 1, 0)
+    h=np.where(np.maximum(hist_cross/hist_truth,(hist_cross.T/hist_pred).T)>=tp_proportion, 1, 0)
     TP = np.sum(np.max(h,axis=0)) # each column with at least a 1 in it
     FN=ncc_truth-TP # TP+FN=number of GTS
     FP=ncc_pred-np.sum(np.max(h,axis=1)) # number of lines with only 0s in them
@@ -68,7 +68,7 @@ def confusion_matrix(pred,vox2met,spheres, min_size=None, TP_proportion=0.3):
     return TP, FN, FP, Cmat
 
 
-def ADAM_evaluation(pred,vox2met,spheres, pretraited=None, min_size=None):
+def adam_evaluation(pred,vox2met,spheres, pretraited=None, min_size=None):
     '''
     takes a (binary) prediction volume with its vox2met transform and a set of ground truth spheres
     returns the TP and FP count for this prediction.
@@ -110,8 +110,8 @@ def ADAM_evaluation(pred,vox2met,spheres, pretraited=None, min_size=None):
     print(f'Case: {len(test_radii)} aneurysms, {pred_coords.shape[0]} detections')
     #True positives lie within radius  of true aneurysm. Only count one true positive per aneurysm. 
     true_positives = 0
-    TP_diam=[] # list for the diameters of the TP (detected) aneurysms
-    FN_diam=[] # list for the diameters of the FN (missed) aneurysms
+    tp_diam=[] # list for the diameters of the TP (detected) aneurysms
+    fn_diam=[] # list for the diameters of the FN (missed) aneurysms
     for location, radius in zip(test_coords, test_radii):
         detected = False
         for detection in pred_coords:
@@ -120,9 +120,9 @@ def ADAM_evaluation(pred,vox2met,spheres, pretraited=None, min_size=None):
                 detected = True
         if detected:
             true_positives += 1
-            TP_diam.append(2*radius)
+            tp_diam.append(2*radius)
         else:
-            FN_diam.append(2*radius)
+            fn_diam.append(2*radius)
 
     false_positives = 0
     for detection in pred_coords:
@@ -134,4 +134,4 @@ def ADAM_evaluation(pred,vox2met,spheres, pretraited=None, min_size=None):
         if not found:
             false_positives += 1
 
-    return true_positives, false_positives, TP_diam, FN_diam
+    return true_positives, false_positives, tp_diam, fn_diam

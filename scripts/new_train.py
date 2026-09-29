@@ -47,7 +47,7 @@ config["positive sample shift"] = config["negative sample shift"]  # random shif
 config["positive sample rotation"] = config["negative sample rotation"]  # random rotation around patch center (in degrees)
 config["positive sample distortion"] = 4  # random amplitude for non rigid distortion (in mm)
 config["positive duplicates"] = 50 # number of duplicates for each aneurysm
-config["flip"] = False #0.3  # Apply random mirroring to 30% max (see specified prob in Volume.getPatchAndTruth); else False
+config["flip"] = False #0.3  # Apply random mirroring to 30% max (see specified prob in volume.patch.get_patch_and_truth); else False
 config["noise"] = False #[0, 0.007] # Random Gaussian noise with [mean, variance]; else False
 
 #config["resume"] = True # Resume training from checkpoint if it exists

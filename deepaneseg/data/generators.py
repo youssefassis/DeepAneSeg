@@ -6,17 +6,17 @@ import deepaneseg.volume.patch as vp
 import deepaneseg.volume.edition as ved
 import deepaneseg.data.io as dio
 
-def generateTransforms(trans=None, rot=None, center=None, disp=None):
+def generate_transforms(trans=None, rot=None, center=None, disp=None):
     '''
-    generate a augmentation transform as a pair of affine,disp (see Patch.getPath function)
+    generate a augmentation transform as a pair of affine,disp (see patch.get_patch function)
     trans: translation amplitude. Can be a 3-vector (along x,y,z) or a scalar (same amplitude in all directions)
     rot: rotation amplitude (in degrees). Can be a 3-vector (around x,y,z) or a scalar (same angle amplitude around all axes)
     center: if set, center of rotation. Else, center is (0,0,0)
     disp: amplitude for the non-rigid (spline) deformation. Can be a 3-vector (along x,y,z) or a scalar (same amplitude in all directions). 
-    Return affine, disp as a pair of transform parameters that can be used as (respectively) affine and disp arguments when calling Patch.getPatch
+    Return affine, disp as a pair of transform parameters that can be used as (respectively) affine and disp arguments when calling patch.get_patch
     If both trans and rot are None, then the returned affine is None
     If disp is None, then the returned disp is None
-    (in compliance with Patch.getPatch default params)
+    (in compliance with patch.get_patch default params)
     returned disp is a 3-tuple of displacements to apply on control points in the x,y and z dimensions. The shape of each tuple is (3,3,3) so that the deformation
     is controlled by a mesh of 3x3x3 control points superimposed on the patch (corners correspond). The returned disp makes sure that no displacement is 
     applied on the center point of the patch (disp[:][1,1,1]=0)
@@ -72,12 +72,12 @@ def generateTransforms(trans=None, rot=None, center=None, disp=None):
         disp=(dx,dy,dz)
     return affine,disp
 
-def splitPatList(pat_list, training_pct=0.7, validation_pct=0.2, testing_pct=0.1):
+def split_pat_list(pat_list, training_pct=0.7, validation_pct=0.2, testing_pct=0.1):
     '''
     split a list of patient directories according to percentages (sum is normalized to 1 if necessary).
     returns three lists for (resp.) training, validation and testing
-    Example use with a dictionary list da, as returned by IO.read_patient_data_base()
-    train_list, valid_list, test_list = splitPatList([d['dir'] for d in da])
+    Example use with a dictionary list da, as returned by io.read_patient_data_base()
+    train_list, valid_list, test_list = split_pat_list([d['dir'] for d in da])
     '''
     train_nb = round(len(pat_list) * training_pct/(training_pct+validation_pct+testing_pct))
     valid_nb = round((len(pat_list)-train_nb) * validation_pct/(validation_pct+testing_pct))

@@ -25,7 +25,7 @@ def main():
     logger = get_logger('Evaluation')
 
    # get testing generator
-    _, _, test_list = dio.readSplit(config['split_file'])
+    _, _, test_list = dio.read_split(config['split_file'])
     normalize = config['normalize'] if 'normalize' in config else None
     test_db = dio.add_points_to_patient_data(dio.read_patient_data_base(test_list,normalize=normalize),
                                             config['negative patch centers'])
@@ -42,7 +42,7 @@ def main():
 #    for threshold in [0, 0.5, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4]:
     get_test_generator(test_db, config["patch_size"], config["patch_shape"], model, threshold = threshold, smallobj=smallobj, holes=0, prob=prob, seuil=seuil)
 
-def getLargestNCC(image, N=1):
+def get_largest_ncc(image, N=1):
     """ image: binary ndarray"""
     labels = measure.label(image)
     max = np.bincount(labels.flat)[1:]
@@ -51,10 +51,10 @@ def getLargestNCC(image, N=1):
       CC+=labels == label
     return CC
 
-def getNumberCC(image):
+def get_number_cc(image):
     return np.amax(measure.label(image))
 
-def postProcessing(volume, threshold, rmsmallObjects= 0, holes=0):
+def post_processing(volume, threshold, rm_small_objects= 0, holes=0):
     volume[volume <= threshold] = 0
     volume[volume > threshold] = 1
 
@@ -63,11 +63,11 @@ def postProcessing(volume, threshold, rmsmallObjects= 0, holes=0):
     volume = morphology.binary_opening(volume, morphology.square(4))
     volume = morphology.binary_closing(volume, morphology.square(4))
 #    volume = morphology.remove_small_holes(volume, holes)
-    if (rmsmallObjects != 0):
-        volume = morphology.remove_small_objects(volume, min_size=rmsmallObjects)
+    if (rm_small_objects != 0):
+        volume = morphology.remove_small_objects(volume, min_size=rm_small_objects)
 
     # Get largest connected components
-    volume = getLargestNCC(volume, 1)
+    volume = get_largest_ncc(volume, 1)
     return tf.cast(volume, dtype=tf.float32)
 
 def predict(model, volume):
@@ -77,14 +77,14 @@ def predict(model, volume):
 
 eps = 0.000001 #tf.keras.backend.epsilon()
 
-def getSubPatches(image):
+def get_sub_patches(image):
     labels = measure.label(image)
     arr = []
-    for i in range(1, getNumberCC(image)+1):
+    for i in range(1, get_number_cc(image)+1):
         arr.append(np.asarray([labels==i], dtype=np.int) )
     return arr
 
-def confusion_matrixPatches(v,t, v2m, prob=0.4):
+def confusion_matrix_patches(v,t, v2m, prob=0.4):
     v = v.numpy()
     t = t.numpy()
     TP, FP, TN, FN = 0,0,0,0
@@ -121,16 +121,16 @@ def get_test_generator(pat_db, size, dim, model, threshold, smallobj=0, holes=0,
 
         # For each patch in 'patient'
         for p in g_list:
-            v, t, v2m = vp.getPatchAndTruth(p['data'], p['vox2met'], p['point'], size, dim, p['aneurysms'], None, None)
+            v, t, v2m = vp.get_patch_and_truth(p['data'], p['vox2met'], p['point'], size, dim, p['aneurysms'], None, None)
             gt = [t]
-            if getNumberCC(t) > 1 :
-                gt = getSubPatches(t)
+            if get_number_cc(t) > 1 :
+                gt = get_sub_patches(t)
             v = predict(model, v)
-            v = postProcessing(v, threshold, rmsmallObjects=smallobj, holes=holes)
-            for aneurysmTruth  in gt:
-                #tf.cast(aneurysmTruth, tf.float32)
+            v = post_processing(v, threshold, rm_small_objects=smallobj, holes=holes)
+            for aneurysm_truth  in gt:
+                #tf.cast(aneurysm_truth, tf.float32)
 
-                conf_mat = confusion_matrixPatches(v, aneurysmTruth, v2m, patient['dir'].split("/")[-1], prob=prob)
+                conf_mat = confusion_matrix_patches(v, aneurysm_truth, v2m, patient['dir'].split("/")[-1], prob=prob)
                 TP.append(conf_mat['tp'])
                 TN.append(conf_mat['tn'])
                 FP.append(conf_mat['fp'])
@@ -141,9 +141,9 @@ def get_test_generator(pat_db, size, dim, model, threshold, smallobj=0, holes=0,
         fn = sum(FN)
         # Kappa
         pa = (tn+tp)/(tn+fp+fn+tp) 
-        P_a = ((tn+fp)/(tn+fp+fn+tp))*((tn+fn)/(tn+fp+fn+tp)) # {aneurysm vs aneurysm}
-        P_n = ((fn+tp)/(tn+fp+fn+tp))*((fp+tp)/(tn+fp+fn+tp)) # {non-aneurysm vs non-aneurysm}
-        pe = P_a + P_n
+        p_a = ((tn+fp)/(tn+fp+fn+tp))*((tn+fn)/(tn+fp+fn+tp)) # {aneurysm vs aneurysm}
+        p_n = ((fn+tp)/(tn+fp+fn+tp))*((fp+tp)/(tn+fp+fn+tp)) # {non-aneurysm vs non-aneurysm}
+        pe = p_a + p_n
         kappascore = (pa-pe)/(1-pe)
 
         sensitivity = tp/(tp+fn+eps)

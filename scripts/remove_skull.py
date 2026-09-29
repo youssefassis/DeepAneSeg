@@ -17,7 +17,7 @@ for pateint in patients:
 	met2vox=np.linalg.inv(vox2met)
 
 	print('Preprocess volume')
-	mask=vs.removeSkullMask(vol)
+	mask=vs.remove_skull_mask(vol)
 	vol=mask*vol
 	max=np.max(vol.ravel())
 	vol/=max

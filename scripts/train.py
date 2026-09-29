@@ -4,9 +4,9 @@ import sys, os, json
 import torch
 from torch import optim
 
-from deepaneseg.data.io import add_points_to_patient_data, readSplit, read_patient_data_base
+from deepaneseg.data.io import add_points_to_patient_data, read_split, read_patient_data_base
 from deepaneseg.utils import create_optimizer, create_lr_scheduler, get_model
-from deepaneseg.training.dataset import getDataloaders
+from deepaneseg.training.dataset import get_dataloaders
 from deepaneseg.training.losses import get_loss_criterion
 from deepaneseg.training.metrics import get_metric
 
@@ -35,20 +35,20 @@ def main():
     normalize = config['normalize'] if 'normalize' in config else None
     vessel = None
 
-    train_list, valid_list, _ = readSplit(config['split_file'])
+    train_list, valid_list, _ = read_split(config['split_file'])
 #    train_list, valid_list = ["/srv/storage/tangram@talc-data2.nancy.grid5000.fr/yassis/Data/P0071"], ["/srv/storage/tangram@talc-data2.nancy.grid5000.fr/yassis/Data/P0071"]
 
     train_db = add_points_to_patient_data(read_patient_data_base( train_list, normalize=normalize, vessel=vessel, label="training"), config['negative patch centers'])
     valid_db = add_points_to_patient_data(read_patient_data_base( valid_list, normalize=normalize, vessel=vessel, label="validation"), config['negative patch centers']) if len(valid_list)>0 else None
 
-    loaders, iterations = getDataloaders(train_db, valid_db, config, shuffle_train=True, shuffle_val=False)
+    loaders, iterations = get_dataloaders(train_db, valid_db, config, shuffle_train=True, shuffle_val=False)
 
     # Trainer
     trainer = create_trainer(config, device = device, model=model, optimizer=optimizer,
                             lr_scheduler=lr_scheduler, loss_criterion=loss_criterion,
                             eval_criterion=eval_criterion, loaders=loaders,max_iterations=iterations)
 
-    trainer.fit(DS=False)
+    trainer.fit(deep_supervision=False)
 
 if __name__ == '__main__':
     main()

@@ -1,6 +1,6 @@
 import numpy as np
 
-def drawSphere(vol, vox2met, c, r, val=0):
+def draw_sphere(vol, vox2met, c, r, val=0):
     '''
      Draw ("burn") a 3D sphere in a volume:
          The sphere is given by its center c and radius r in RAS coordinates
@@ -39,7 +39,7 @@ def drawSphere(vol, vox2met, c, r, val=0):
         # burn voxels
         vol[pmin[0]:pmax[0],pmin[1]:pmax[1],pmin[2]:pmax[2]].flat[i] = val
 
-def drawCube(vol, vox2met, c, s, val=0):
+def draw_cube(vol, vox2met, c, s, val=0):
     '''
     Draws a cube of center c and dimension s in vol
     val is the value taken by voxels inside the cube
@@ -62,7 +62,7 @@ def drawCube(vol, vox2met, c, s, val=0):
     pmax = np.minimum(pmax,vmax)+1 # previous points where included in intervals
     vol[pmin[0]:pmax[0],pmin[1]:pmax[1],pmin[2]:pmax[2]] = val
 
-def getTruth(vol,vox2met,spheres):
+def get_truth(vol,vox2met,spheres):
     '''
     Burns the spheres stored in spheres: each line contains 4 components
     The first 3 components are the center of the sphere and the 4 is its radius
@@ -73,5 +73,5 @@ def getTruth(vol,vox2met,spheres):
     t=np.zeros(vol.shape).astype(np.uint8)
     if spheres is not None:
         for i,s in enumerate(spheres):
-            drawSphere(t,vox2met,s[:3],s[3],i+1)
+            draw_sphere(t,vox2met,s[:3],s[3],i+1)
     return t

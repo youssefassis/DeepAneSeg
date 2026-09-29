@@ -14,7 +14,7 @@ from deepaneseg.training.metrics import get_metric
 
 from prefetch_generator import BackgroundGenerator
 import deepaneseg.data.io as dio
-from deepaneseg.volume.patch import getPatchAndTruth
+from deepaneseg.volume.patch import get_patch_and_truth
 
 
 logger = get_logger('Model Trainer')
@@ -93,22 +93,22 @@ class Trainer:
                    best_eval_score=state['best_eval_score'], num_epoch=state['epoch'], max_num_epochs=max_num_epochs,
                    max_iterations=max_iterations)
 
-    def fit(self, sanity_check=False, DS=False):
+    def fit(self, sanity_check=False, deep_supervision=False):
         torch.backends.cudnn.benchmark = True
         self.adjust_lr = True
         logger.info(f"Start training the model for the next {self.max_num_epochs - self.num_epoch} epochs")
         for epoch in range(self.num_epoch, self.max_num_epochs):
-            should_terminate = self.train(sanity_check, DS)
+            should_terminate = self.train(sanity_check, deep_supervision)
             if should_terminate:
                 return
-            should_terminate = self.validate(sanity_check, DS)
+            should_terminate = self.validate(sanity_check, deep_supervision)
             if should_terminate:
                 return
             self.num_epoch += 1
         logger.info(f"Reached maximum number of epochs: {self.max_num_epochs}. Finishing training.")
 
 ######################## BASIC ########################
-    def train(self, sanity_check=False, DS=False):
+    def train(self, sanity_check=False, deep_supervision=False):
         logger.info(f"Epoch [{self.num_epoch}/{self.max_num_epochs}]")
         self.model.train()
         loop = tqdm(BackgroundGenerator(self.loaders['train']), leave=True, unit='batch', total = self.max_iterations['train'])
@@ -120,8 +120,8 @@ class Trainer:
             input, target = self._split_training_batch(batch)
 
             output = self.model(input)
-            if DS:
-                target = get_MultiScaleGT(target)
+            if deep_supervision:
+                target = get_multiscale_gt(target)
 
             loss, metric = self.loss_batch(self.loss_criterion, self.eval_criterion, output, target, opt=self.optimizer)
 
@@ -143,7 +143,7 @@ class Trainer:
         return False
 
     @torch.no_grad() # turn off gradients
-    def validate(self, sanity_check=False, DS=False):
+    def validate(self, sanity_check=False, deep_supervision=False):
          if self.loaders['valid'] is not None:
             self.model.eval() # Switch model to evaluation mode
             eval_losses = RunningAverage()
@@ -154,8 +154,8 @@ class Trainer:
                 input, target = self._split_training_batch(batch)
 
                 output = self.model(input)
-                if DS:
-                    target = get_MultiScaleGT(target)
+                if deep_supervision:
+                    target = get_multiscale_gt(target)
     
                 loss, metric = self.loss_batch(self.loss_criterion, self.eval_criterion, output, target, opt=None)
 
@@ -169,14 +169,14 @@ class Trainer:
                     break
             self._log_stats('val', loss, metric, self.num_epoch)
             saved = self._save_best("valid", metric)
-            self._updateLR(loss, saved)
+            self._update_lr(loss, saved)
 
             if self.should_stop(train=False):
                 logger.info('Stopping criterion is satisfied. Finishing training.')
                 return True
             return False
 
-    def _updateLR(self, loss, saved):
+    def _update_lr(self, loss, saved):
         if not self.adjust_lr:
             return
         if isinstance(self.scheduler, ReduceLROnPlateau):
@@ -291,7 +291,7 @@ class Trainer:
 
     @staticmethod
     def loss_batch(loss_func, metrics_func, output, target, opt=None):
-        loss = computeLoss(loss_func, output, target)
+        loss = compute_loss(loss_func, output, target)
         with torch.no_grad():
             if isinstance(output, list) and isinstance(target, list):
                 metric_b = metrics_func(output[-1],target[-1])
@@ -303,7 +303,7 @@ class Trainer:
             opt.step()	# weight updates
         return loss.item(), metric_b.item()
 
-def computeLoss(loss_func, output, target):
+def compute_loss(loss_func, output, target):
     if isinstance(output, list) and isinstance(target, list):
         assert len(output) == len(target), "Output and Target tensors should have the save length"
         loss = []
@@ -313,7 +313,7 @@ def computeLoss(loss_func, output, target):
     else:
         return loss_func(output, target)
 
-def get_MultiScaleGT(target):
+def get_multiscale_gt(target):
     '''return a list of features'''
     gt_features_levels = []
     gt_features_levels.append(torch.nn.Upsample(size=6, mode='trilinear', align_corners=True)(target))
