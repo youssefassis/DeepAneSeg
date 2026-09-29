@@ -28,12 +28,13 @@ def fetch_patient_dirs(base_dir):
     return sorted(os.path.dirname(conf) for conf in glob.glob(os.path.join(base_dir, "P????", "config.json")))
 
 
-def read_nii_from_file(fname):
+def read_nii_from_file(fname, dtype=np.float32):
     """
-    Read a nii volume and return a 2-tuple with the voxel data (np array) and the voxel2metric tranform
+    Read a nii volume and return a 2-tuple with the voxel data (np array, float32 by default: half the memory of
+    nibabel's float64) and the voxel2metric tranform
     """
     nv = ni.load(fname)
-    return nv.get_fdata(), nv.affine
+    return nv.get_fdata(dtype=dtype), nv.affine
 
 
 def save_nii_to_file(fname, vol, vox2met):
