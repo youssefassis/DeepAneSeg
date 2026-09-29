@@ -41,12 +41,11 @@ def save_nii_to_file(fname,vol,vox2met):
 def read_points_from_csv(fname):
     '''
     returns a list of points, read from a csv file. Coordinates are stored in columns named 'x', 'y' and 'z'
+    returns None if the file does not exist; raises ValueError if the coordinate columns are missing
     '''
-    try:
-        d = pd.read_csv(fname, usecols=['x','y','z'])
-        return d.to_numpy()
-    except:
+    if not os.path.isfile(fname):
         return None
+    return pd.read_csv(fname, usecols=['x','y','z']).to_numpy()
 
 def points_to_spheres(p):
     '''
@@ -140,7 +139,7 @@ def save_split(cfg, train_list, valid_list, test_list):
     try:
         with open(cfg,'r') as f:
             d = json.load(f)
-    except:
+    except FileNotFoundError:
         d = {}
     d['training list'] = train_list
     d['validation list'] = valid_list
