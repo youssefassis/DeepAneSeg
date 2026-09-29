@@ -117,7 +117,7 @@ def ndl_patch_wise_prediction(device, model, data, margin=0, batch_size=1, patie
 def ndl_run_validation_case(pat_dict, device, size, output_dir, model, margin=0, batch_size=1):
     """
     Runs a test case and writes predicted images to file.
-    :param pat_dict: info about the patient data. Dictionary as returned by Data.IO.read_patient_dabase (including the 'dir' key)
+    :param pat_dict: info about the patient data. Dictionary as returned by data.io.read_patient_data_base (including the 'dir' key)
     :param size: 3-tuple that provides the size in mm of a patch (patch shape will be extracted from model info)
     :param output_dir: Where to write prediction images.
     :param output_label_map: If True, will write out a single image with one or more labels. Otherwise outputs
@@ -147,8 +147,8 @@ def ndl_run_validation_case(pat_dict, device, size, output_dir, model, margin=0,
 
     timage=resample_to_spacing(prediction, new_spacing, old_spacing)
 
-    imageF = nib.Nifti1Image(timage, affine)
-    imageF.to_filename(output_file)
+    image = nib.Nifti1Image(timage, affine)
+    image.to_filename(output_file)
 
 @torch.no_grad()
 def ndl_run_validation_cases(pat_db, device, model, patch_size, output_dir='.', margin=0, batch_size=1):
@@ -156,10 +156,10 @@ def ndl_run_validation_cases(pat_db, device, model, patch_size, output_dir='.', 
         ndl_run_validation_case(p, device, output_dir=output_dir, model=model, size=patch_size, margin=margin, batch_size=batch_size)
 
 
-from deepaneseg.volume.edition import getTruth
+from deepaneseg.volume.edition import get_truth
 import deepaneseg.inference.evaluation as dle
 @torch.no_grad()
-def getPatientPrediction(pat_path, device, model, patch_size, output_dir='.', margin=8, batch_size=10, normalization='Normal'):
+def get_patient_prediction(pat_path, device, model, patch_size, output_dir='.', margin=8, batch_size=10, normalization='Normal'):
     pat_dict = dio.read_patient_data_base([pat_path], volume='init volume', normalize=normalization)[0]
 
     affine = pat_dict['affine']
@@ -184,8 +184,8 @@ def getPatientPrediction(pat_path, device, model, patch_size, output_dir='.', ma
 
     # Get truth
     spheres = dio.points_to_spheres(pat_dict["aneurysms"])
-#    truth = getTruth(pat_dict["data"], affine, spheres)
+#    truth = get_truth(pat_dict["data"], affine, spheres)
 #    cm = dle.confusion_matrix(pred, affine, spheres, min_size=None)
 #    dio.save_nii_to_file ("/home/yassis/Data/0Work/truth.nii.gz", truth, affine)
-#    _,_, TP_diam, FN_diam = dle.ADAM_evaluation(pred, affine, spheres, min_size=None)
-    return prediction, affine, spheres#cm, TP_diam, FN_diam #scores#timage, truth
+#    _,_, tp_diam, fn_diam = dle.adam_evaluation(pred, affine, spheres, min_size=None)
+    return prediction, affine, spheres#cm, tp_diam, fn_diam #scores#timage, truth

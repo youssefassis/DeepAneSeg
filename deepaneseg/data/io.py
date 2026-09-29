@@ -5,7 +5,7 @@ import string
 import pandas as pd
 import json, glob
 
-from deepaneseg.volume.selection import selectPoints
+from deepaneseg.volume.selection import select_points
 from deepaneseg.utils import get_logger
 
 logger = get_logger("Data Preparation")
@@ -136,7 +136,7 @@ def add_points_to_patient_data(da,pname):
         d.update({'points':read_points_from_csv(os.path.join(d['dir'],pname))})
     return da
 
-def saveSplit(cfg, train_list, valid_list, test_list):
+def save_split(cfg, train_list, valid_list, test_list):
     '''
     saves a list of patients (directories) split in train, validation and test lists into a json file (cfg), with keys 'training list', 
     'validation list' and 'testing list'
@@ -153,10 +153,10 @@ def saveSplit(cfg, train_list, valid_list, test_list):
     with open(cfg, 'w') as f:
         json.dump(d, f, indent=2)
 
-def readSplit(cfg):
+def read_split(cfg):
     '''
     reads a split list of patients (directories), in a json file with keys 'training list', 'validation list' and 'testing list'
-    see also saveSplit()
+    see also save_split()
     '''
     with open(cfg, 'r') as f:
         d = json.load(f)
@@ -167,13 +167,13 @@ def readSplit(cfg):
 def csv2fcsv(csv_pathname):
     filename, file_extension = os.path.splitext(csv_pathname)
     assert file_extension == '.csv', "Please choose a file '.csv' extension"
-    fcsv_fileOut = filename + ".fcsv"
+    fcsv_file_out = filename + ".fcsv"
     pcsv = pd.read_csv(csv_pathname)
     label=[f'{t}_{i}' for i,t in pcsv[['Unnamed: 0','type']].to_numpy()]
     df = pd.concat([pcsv,pd.Series(label,name='id')], axis=1)
     df = df[['id','x','y','z']]
     head=f'# Markups fiducial file version = 4.10\n# CoordinateSystem = 0\n# columns = {",".join(df)}'
-    with open(fcsv_fileOut, 'w') as f:
+    with open(fcsv_file_out, 'w') as f:
 	    f.write(head)
 	    for i,l in df.iterrows():
 	    	f.write(','.join([f'{v}' for v in l])+'\n')
@@ -182,7 +182,7 @@ def csv2fcsv(csv_pathname):
 def fcsv2csv(fcsv_file):
     filename, file_extension = os.path.splitext(csv_file)
     assert file_extension == '.fcsv', "Please choose a file with '.fcsv' extension"
-    csv_fileOut = filename + ".csv"
+    csv_file_out = filename + ".csv"
 
     with open(fcsv_file, 'r') as f:
         l=f.readlines()
@@ -205,34 +205,34 @@ def fcsv2csv(fcsv_file):
     # create data frame
     d=pd.DataFrame(data=data, columns=cn)
     # save the result
-    d.to_csv(csv_fileOut, index=False)
+    d.to_csv(csv_file_out, index=False)
 
-def extractPointsFromPatient(patient, r=20, nbPoints=100, outfile="points.csv", randomPoints=False):
+def extract_points_from_patient(patient, r=20, nb_points=100, outfile="points.csv", random_points=False):
 	os.chdir(patient)
 	print('Load volume from disk: '+patient)
 	with open("config.json", 'r') as f:
 		d = json.load(f)
 	vol, vox2met = read_nii_from_file(d['noskull volume'])
 	print(f'Extracting points')
-	fPoints = read_points_from_csv(d['pts aneurysm'])
-	fp = points_to_spheres(fPoints)[:,:-1] # drop centers
+	forbidden_points = read_points_from_csv(d['pts aneurysm'])
+	fp = points_to_spheres(forbidden_points)[:,:-1] # drop centers
 	q = None
-	if randomPoints:
-		minThreshold, maxThreshold = np.percentile(vol[vol>0], 0), np.percentile(vol[vol>0], 100)
+	if random_points:
+		min_threshold, max_threshold = np.percentile(vol[vol>0], 0), np.percentile(vol[vol>0], 100)
 		print(f'\Random Points ', end='')
-		p=selectPoints(vol, vox2met, thresLow=minThreshold, thresHigh=maxThreshold, r=r,
-                             fPoints=fp, nbPoints=nbPoints, extractType='Parenchyma')
+		p=select_points(vol, vox2met, thres_low=min_threshold, thres_high=max_threshold, r=r,
+                             forbidden_points=fp, nb_points=nb_points, extract_type='Parenchyma')
 		print(f'{len(p)} random points')
 		title = 'Random'
 	else:
 		T= np.percentile(vol[vol>0], 95)
-		minThreshold = np.percentile(vol[vol>0], 50)
-		maxThreshold = np.percentile(vol[vol>0], 90)
-		p = selectPoints(vol, vox2met, thresLow=T, r=r, fPoints=fp, nbPoints=nbPoints, extractType='Vessels')
+		min_threshold = np.percentile(vol[vol>0], 50)
+		max_threshold = np.percentile(vol[vol>0], 90)
+		p = select_points(vol, vox2met, thres_low=T, r=r, forbidden_points=fp, nb_points=nb_points, extract_type='Vessels')
 		title = 'Vessel'
 		print(f'{len(p)} vessel points')
-		q=selectPoints(vol,vox2met,thresLow=minThreshold,thresHigh=maxThreshold,r=r,fPoints=np.vstack((fp,p)),
-                                nbPoints=nbPoints,extractType='Parenchyma')
+		q=select_points(vol,vox2met,thres_low=min_threshold,thres_high=max_threshold,r=r,forbidden_points=np.vstack((fp,p)),
+                                nb_points=nb_points,extract_type='Parenchyma')
 		print(f'{len(q)} tParenchyma points')
 
 	# export to csv using pandas
@@ -248,10 +248,10 @@ def extractPointsFromPatient(patient, r=20, nbPoints=100, outfile="points.csv", 
 	points.to_csv(outfile)
 	csv2fcsv(outfile)
 
-def extractPoints(dataPath, r = 20, nbPoints=100, outfile="points.csv", randomPoints = False):
-    patients = fetch_patient_dirs(dataPath)
+def extract_points(data_path, r = 20, nb_points=100, outfile="points.csv", random_points = False):
+    patients = fetch_patient_dirs(data_path)
     for patient in patients:
-        extractPointsFromPatient(patient, r=r, nbPoints=nbPoints, outfile=outfile, randomPoints=randomPoints)
+        extract_points_from_patient(patient, r=r, nb_points=nb_points, outfile=outfile, random_points=random_points)
 
-#extractPoints("/srv/storage/tangram@talc-data2.nancy.grid5000.fr/yassis/Data/", r=20, nbPoints=200, outfile="RandomPoints.csv", randomPoints=True)
+#extract_points("/srv/storage/tangram@talc-data2.nancy.grid5000.fr/yassis/Data/", r=20, nb_points=200, outfile="RandomPoints.csv", random_points=True)
 

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from deepaneseg.models.building_blocks import number_of_features_per_level, create_encoders, create_decoders, createConv, DoubleConv
+from deepaneseg.models.building_blocks import number_of_features_per_level, create_encoders, create_decoders, create_conv3d, DoubleConv
 
 #######################################  UNET 3D #########################################################
 
@@ -22,7 +22,7 @@ class UNet3D(nn.Module):
 
         self.decoders = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding,
                                         layer_order)
-        self.final_conv = createConv(f_maps[0], out_channels, kernel=1, padding=0)
+        self.final_conv = create_conv3d(f_maps[0], out_channels, kernel=1, padding=0)
         self.final_activation = nn.Sigmoid()
 
 
@@ -61,48 +61,48 @@ class Proposition1(nn.Module):
 
         self.decodersDet = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding,
                                         layer_order)
-        self.final_convDet = createConv(f_maps[0], out_channels, kernel=1, padding=0)
+        self.final_convDet = create_conv3d(f_maps[0], out_channels, kernel=1, padding=0)
 
         self.encodersSeg = create_encoders(in_channels, f_maps, basic_module, conv_kernel_size,
                                         conv_padding, layer_order, pool_kernel_size)
 
         self.decodersSeg = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding,
                                         layer_order)
-        self.final_convSeg = createConv(f_maps[0], out_channels, kernel=1, padding=0)
+        self.final_convSeg = create_conv3d(f_maps[0], out_channels, kernel=1, padding=0)
 
         self.final_activation = nn.Sigmoid()
-        self.attentionblocks = create_attentionBlocks(list(reversed(f_maps)))
+        self.attentionblocks = create_attention_blocks(list(reversed(f_maps)))
 
 
     def forward(self, x_det, x_seg=None):
         # VESSEL SEGMENTATION
         if x_seg is not None:
-            encoders_featuresSeg = []
+            encoders_features_seg = []
             for encoder in self.encodersSeg:
                 x_seg = encoder(x_seg)
-                encoders_featuresSeg.insert(0, x_seg)
-            SegFeatures = []
-            SegFeatures.append(x_seg)
-            for decoder, encoder_features in zip(self.decodersSeg, encoders_featuresSeg[1:]):
+                encoders_features_seg.insert(0, x_seg)
+            seg_features = []
+            seg_features.append(x_seg)
+            for decoder, encoder_features in zip(self.decodersSeg, encoders_features_seg[1:]):
                 x_seg = decoder(encoder_features, x_seg)
-                SegFeatures.append(x_seg)
+                seg_features.append(x_seg)
             x_seg = self.final_convSeg(x_seg)
             x_seg = self.final_activation(x_seg)
 
         ## ANEURYSM DETECTION
-        encoders_featuresDet = []
+        encoders_features_det = []
         for i, encoder in enumerate(self.encodersDet):
             x_det = encoder(x_det)
             if x_seg is not None and i == len(self.encodersDet) - 1:
                 # Attention block
-                x_det = self.attentionblocks[0](x_det, SegFeatures[0])
-            encoders_featuresDet.insert(0, x_det)
+                x_det = self.attentionblocks[0](x_det, seg_features[0])
+            encoders_features_det.insert(0, x_det)
         # Decoders
-        for i, (decoder, encoder_features) in enumerate(zip(self.decodersDet, encoders_featuresDet[1:])):
+        for i, (decoder, encoder_features) in enumerate(zip(self.decodersDet, encoders_features_det[1:])):
             x_det = decoder(encoder_features, x_det)
             if x_seg is not None:
                 # Attention block
-                x_det = self.attentionblocks[i+1](x_det, SegFeatures[i+1])
+                x_det = self.attentionblocks[i+1](x_det, seg_features[i+1])
         x_det = self.final_convDet(x_det)
         x_det = self.final_activation(x_det)
         if x_seg is not None:
@@ -110,11 +110,11 @@ class Proposition1(nn.Module):
         else:
             return x_det
 
-def create_attentionBlocks(f_maps):
-    attenionBlocks = []
+def create_attention_blocks(f_maps):
+    attention_blocks = []
     for i in f_maps:
-        attenionBlocks.append(Attention(i))
-    return nn.ModuleList(attenionBlocks)
+        attention_blocks.append(Attention(i))
+    return nn.ModuleList(attention_blocks)
 
 class Attention(nn.Module):
     def __init__(self, in_channels):
@@ -127,14 +127,14 @@ class Attention(nn.Module):
         self.activation = nn.ReLU(inplace=True)
 #        self.project_excitation = ProjectExciteLayer(in_channels)
 
-    def cropAndUpsample(self, x, d=2):
+    def crop_and_upsample(self, x, d=2):
         dim = x.shape[-1]
         a = (dim - dim // d) // 2
         cropped = x[:, :, a:dim-a, a:dim-a, a:dim-a]
         return self.upsampling(cropped)
 
     def forward(self, detection, segmentation):
-        segmentation = self.cropAndUpsample(segmentation)
+        segmentation = self.crop_and_upsample(segmentation)
 
         # ReLU activation
         segmentation = self.activation(segmentation)
@@ -209,7 +209,7 @@ class Proposition2(nn.Module):
 
         self.decodersDet = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding,
                                         layer_order)
-        self.DetMultiscaleConvs = createMultiScaleConvs(list(reversed(f_maps)))
+        self.DetMultiscaleConvs = create_multiscale_convs(list(reversed(f_maps)))
 
         ## SEGMENTATION
         self.encodersSeg = create_encoders(in_channels, f_maps, basic_module, conv_kernel_size,
@@ -217,56 +217,56 @@ class Proposition2(nn.Module):
 
         self.decodersSeg = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding,
                                         layer_order)
-        self.SegMultiscaleConvs = createMultiScaleConvs(list(reversed(f_maps)))
+        self.SegMultiscaleConvs = create_multiscale_convs(list(reversed(f_maps)))
 
         self.final_activation = nn.Sigmoid()
-        self.attentionblocks = createMTAblocks(f_maps[:-1])
+        self.attentionblocks = create_mta_blocks(f_maps[:-1])
 
     def forward(self, x_det, x_seg=None):
         # VESSEL SEGMENTATION
         if x_seg is not None:
-            encoders_featuresSeg, vesselPredictions = [],[]
+            encoders_features_seg, vessel_predictions = [],[]
             for encoder in self.encodersSeg:
                 x_seg = encoder(x_seg)
-                encoders_featuresSeg.insert(0, x_seg)
-            SegFeatures = []
-            SegFeatures.append(x_seg)
-            vesselPredictions.append(self.final_activation(self.SegMultiscaleConvs[0](x_seg)))
-            for i, (decoder, encoder_features) in enumerate(zip(self.decodersSeg, encoders_featuresSeg[1:])):
+                encoders_features_seg.insert(0, x_seg)
+            seg_features = []
+            seg_features.append(x_seg)
+            vessel_predictions.append(self.final_activation(self.SegMultiscaleConvs[0](x_seg)))
+            for i, (decoder, encoder_features) in enumerate(zip(self.decodersSeg, encoders_features_seg[1:])):
                 x_seg = decoder(encoder_features, x_seg)
-                SegFeatures.append(x_seg)
-                vesselPredictions.append(self.final_activation(self.SegMultiscaleConvs[i+1](x_seg)))
+                seg_features.append(x_seg)
+                vessel_predictions.append(self.final_activation(self.SegMultiscaleConvs[i+1](x_seg)))
 
-            x_seg = self.final_activation(vesselPredictions[-1])
+            x_seg = self.final_activation(vessel_predictions[-1])
 
         ## ANEURYSM DETECTION
-        encoders_featuresDet, detectionPredictions = [], []
+        encoders_features_det, detection_predictions = [], []
         for i, encoder in enumerate(self.encodersDet):
             x_det = encoder(x_det)
             if i == len(self.encodersDet)-1: #x_seg is not None and 
-                detectionPredictions.append(self.final_activation(self.DetMultiscaleConvs[0](x_det)))
-            encoders_featuresDet.insert(0, x_det)
+                detection_predictions.append(self.final_activation(self.DetMultiscaleConvs[0](x_det)))
+            encoders_features_det.insert(0, x_det)
         # Decoders
-        for i, (decoder, encoder_features) in enumerate(zip(self.decodersDet, encoders_featuresDet[1:])):
+        for i, (decoder, encoder_features) in enumerate(zip(self.decodersDet, encoders_features_det[1:])):
             # Attention
             if x_seg is not None:
-                encoder_features = self.attentionblocks[i](encoder_features, detectionPredictions[-1], vesselPredictions[i])
+                encoder_features = self.attentionblocks[i](encoder_features, detection_predictions[-1], vessel_predictions[i])
             # else:
-            #     encoder_features = self.attentionblocks[i](encoder_features, detectionPredictions[-1], None)
+            #     encoder_features = self.attentionblocks[i](encoder_features, detection_predictions[-1], None)
 
             x_det = decoder(encoder_features, x_det)
-            detectionPredictions.append(self.final_activation(self.DetMultiscaleConvs[i+1](x_det)))
-        x_det = detectionPredictions[-1]
+            detection_predictions.append(self.final_activation(self.DetMultiscaleConvs[i+1](x_det)))
+        x_det = detection_predictions[-1]
 
         if x_seg is not None:
-            return detectionPredictions, vesselPredictions
+            return detection_predictions, vessel_predictions
         else:
-            return detectionPredictions
+            return detection_predictions
 
-def createMultiScaleConvs(f_maps):
+def create_multiscale_convs(f_maps):
     convs = []
     for m in f_maps:
-        convs.append(createConv(m, 1, kernel=1, padding=0))
+        convs.append(create_conv3d(m, 1, kernel=1, padding=0))
     return nn.ModuleList(convs)
 
 
@@ -299,12 +299,12 @@ class MTA(nn.Module):
         aneurysm = aneurysm + skip
         return aneurysm
 
-def createMTAblocks(f_maps):
-    attenionBlocks = []
+def create_mta_blocks(f_maps):
+    attention_blocks = []
     for i in list(reversed(f_maps)):
         attention = MTA(i)
-        attenionBlocks.append(attention)
-    return nn.ModuleList(attenionBlocks)
+        attention_blocks.append(attention)
+    return nn.ModuleList(attention_blocks)
 
 ## Test model
 #model = Proposition2()
@@ -313,7 +313,7 @@ def createMTAblocks(f_maps):
 
 #######################################  Proposition 3 #########################################################
 
-def createUpsamplingBlocks(f_maps):
+def create_upsampling_blocks(f_maps):
     deconvs = []
     for in_channels in f_maps:
         deconvs.append(nn.ConvTranspose3d(in_channels, in_channels, kernel_size=3, stride=2, padding=1, output_padding=1))
@@ -342,16 +342,16 @@ class AttentionProp3(nn.Module):
         features = self.conv(features)
         return features
 
-def create_attentionBlocksProp3(f_maps):
+def create_attention_blocks_prop3(f_maps):
     blocks = []
     for i in f_maps:
         blocks.append(AttentionProp3(i))
     return nn.ModuleList(blocks)
 
-def createMultiScaleConvs(f_maps):
+def create_multiscale_convs(f_maps):
     convs = []
     for m in list(reversed(f_maps)):
-        convs.append(createConv(m, 1, kernel=1, padding=0))
+        convs.append(create_conv3d(m, 1, kernel=1, padding=0))
     return nn.ModuleList(convs)
 
 
@@ -373,10 +373,10 @@ def createMultiScaleConvs(f_maps):
 #         self.decoders = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding,
 #                                         layer_order, upsampling=False)
 
-#         self.final_conv = createConv(f_maps[0], out_channels, kernel=1, padding=0)
+#         self.final_conv = create_conv3d(f_maps[0], out_channels, kernel=1, padding=0)
 #         self.final_activation = nn.Sigmoid()
-#         self.upsampling = createUpsamplingBlocks(list(reversed(f_maps[1:])))
-#         self.attentionBlocks = create_attentionBlocksProp3(list(reversed(f_maps[1:])))
+#         self.upsampling = create_upsampling_blocks(list(reversed(f_maps[1:])))
+#         self.attentionBlocks = create_attention_blocks_prop3(list(reversed(f_maps[1:])))
 
 #     def forward(self, x):
 #         # Encoder part
@@ -398,7 +398,7 @@ def createMultiScaleConvs(f_maps):
 class Proposition3(nn.Module):
     def __init__(self, in_channels=1, out_channels=1, basic_module=DoubleConv,
                     f_maps=64, layer_order='cbr', num_levels=4,
-                    conv_kernel_size=3, pool_kernel_size=2, conv_padding=1, deepSupervison=True):
+                    conv_kernel_size=3, pool_kernel_size=2, conv_padding=1, deep_supervision=True):
 
         super(Proposition3, self).__init__()
         if isinstance(f_maps, int):
@@ -412,35 +412,35 @@ class Proposition3(nn.Module):
 
         self.decoders = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding,
                                         layer_order, upsampling=False)
-        self.deepSupervison = deepSupervison
-        if self.deepSupervison:
-            self.DetMultiscaleConvs = createMultiScaleConvs(f_maps)
+        self.deep_supervision = deep_supervision
+        if self.deep_supervision:
+            self.DetMultiscaleConvs = create_multiscale_convs(f_maps)
         else:
-            self.final_conv = createConv(f_maps[0], out_channels, kernel=1, padding=0)
+            self.final_conv = create_conv3d(f_maps[0], out_channels, kernel=1, padding=0)
         self.final_activation = nn.Sigmoid()
-        self.upsampling = createUpsamplingBlocks(list(reversed(f_maps[1:])))
-        self.attentionBlocks = create_attentionBlocksProp3(list(reversed(f_maps[1:])))
+        self.upsampling = create_upsampling_blocks(list(reversed(f_maps[1:])))
+        self.attentionBlocks = create_attention_blocks_prop3(list(reversed(f_maps[1:])))
 
     def forward(self, x):
         # Encoder part
-        detectionPredictions, encoders_features = [], []
+        detection_predictions, encoders_features = [], []
         for i, encoder in enumerate(self.encoders):
             x = encoder(x)
-            if self.deepSupervison and i == len(self.encoders)-1:
-                detectionPredictions.append(self.final_activation(self.DetMultiscaleConvs[0](x)))
+            if self.deep_supervision and i == len(self.encoders)-1:
+                detection_predictions.append(self.final_activation(self.DetMultiscaleConvs[0](x)))
             encoders_features.insert(0, x)
         # Decoder part
         for i, (decoder, encoder_features) in enumerate(zip(self.decoders, encoders_features[1:])):
             x = self.upsampling[i] (x)
             encoder_features = self.attentionBlocks[i](encoder_features, x)
             x = decoder(encoder_features, x)
-            if self.deepSupervison:
-                detectionPredictions.append(self.final_activation(self.DetMultiscaleConvs[i+1](x)))
-        if not self.deepSupervison:
-            detectionPredictions = self.final_activation(self.final_conv(x))
-        return detectionPredictions
+            if self.deep_supervision:
+                detection_predictions.append(self.final_activation(self.DetMultiscaleConvs[i+1](x)))
+        if not self.deep_supervision:
+            detection_predictions = self.final_activation(self.final_conv(x))
+        return detection_predictions
 
 # Test model
-# model = Proposition3(deepSupervison=True)
+# model = Proposition3(deep_supervision=True)
 #print(model)
 # print(model(torch.randn(1, 1, 48, 48, 48))[-1].shape)

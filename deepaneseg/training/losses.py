@@ -33,9 +33,9 @@ class BCEDiceLoss(nn.Module):
         intersection = (inputs * targets).sum()
         dice_loss = 1 - (2.*intersection + smooth)/(inputs.sum() + targets.sum() + smooth)
         BCE = F.binary_cross_entropy(inputs, targets, reduction='mean')
-        Dice_BCE = BCE + dice_loss
+        dice_bce = BCE + dice_loss
 
-        return Dice_BCE
+        return dice_bce
 
 class WeightedCrossEntropyLoss(nn.Module):
     """WeightedCrossEntropyLoss (WCE) as described in https://arxiv.org/pdf/1707.03237.pdf
@@ -89,8 +89,8 @@ class FocalLoss(nn.Module):
         targets = targets.view(-1)
         #first compute binary cross-entropy
         BCE = F.binary_cross_entropy(inputs, targets, reduction='mean')
-        BCE_EXP = torch.exp(-BCE)
-        focal_loss = alpha * (1-BCE_EXP)**gamma * BCE
+        bce_exp = torch.exp(-BCE)
+        focal_loss = alpha * (1-bce_exp)**gamma * BCE
         return focal_loss
 
 class TverskyLoss(nn.Module):
@@ -126,9 +126,9 @@ class FocalTverskyLoss(nn.Module):
         FN = (targets * (1-inputs)).sum()
 
         Tversky = (TP + smooth) / (TP + alpha*FP + beta*FN + smooth)
-        FocalTversky = (1 - Tversky)**gamma
+        focal_tversky = (1 - Tversky)**gamma
 
-        return FocalTversky
+        return focal_tversky
 
 class KappaLoss(nn.Module):
     def __init__(self):

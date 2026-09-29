@@ -5,21 +5,21 @@ import skimage.morphology as skim
 import skimage.measure as skme
 
 
-def extractPointsThres(vol,vox2met,thresLow, thresHigh):
+def extract_points_thres(vol,vox2met,thres_low, thres_high):
     '''
-    return points in vol whose value is between thresLow (strictly)
-    and thresHigh (loosely)
+    return points in vol whose value is between thres_low (strictly)
+    and thres_high (loosely)
     return points coordinates (p) and values at these points (v)
     p is returned as a Nx3 array (or D is len(vol.shape) == D)
     and v is returned as 1xN-array
     '''
-    idx=np.nonzero(np.logical_and(vol>thresLow,vol<=thresHigh))
+    idx=np.nonzero(np.logical_and(vol>thres_low,vol<=thres_high))
     v=vol[idx]
     p=vox2met[:3,:]@np.vstack((idx,np.ones(len(v))))+(0.5*vox2met[:3,:3]@np.ones(3)).reshape((-1,1))
 
     return p.T,v
 
-def pointsInRadius(q,p,r):
+def points_in_radius(q,p,r):
     '''
     return the indices of all points from p within distance r from q
     (p=point set, q=query point)
@@ -27,21 +27,21 @@ def pointsInRadius(q,p,r):
     (work ok in dimensions D!=3 too)
     '''
     if len(q.shape) == 1:
-        Qq=np.array(q)[np.newaxis,:]
+        queries=np.array(q)[np.newaxis,:]
     else:
-        Qq=q
+        queries=q
     tree=skn.KDTree(p)
-    return tree.query_radius(Qq,r)[0]
+    return tree.query_radius(queries,r)[0]
 
-def selectPoints(vol,vox2met,thresLow,r,thresHigh=None,fPoints=None,
-                 nbPoints=None, extractType='Vessels'):
+def select_points(vol,vox2met,thres_low,r,thres_high=None,forbidden_points=None,
+                 nb_points=None, extract_type='Vessels'):
     '''
     return p: where p is a Nx3 array of the coordinates of points above threshold thres,
               such that any two pair of points are at least at a distance r
-    If fPoints is not None, it should be a Nx3 array of forbidden points (coordinates).
+    If forbidden_points is not None, it should be a Nx3 array of forbidden points (coordinates).
     In that case, all points within a distance of each point in that list are
     removed.
-    If nbPoints is provided (a number), then at most nbPoints are returned.
+    If nb_points is provided (a number), then at most nb_points are returned.
     The function starts with the brightest allowable point and review points with
     decreasing value. As a consequence, v should be sorted (decreasing) on output
 
@@ -50,26 +50,26 @@ def selectPoints(vol,vox2met,thresLow,r,thresHigh=None,fPoints=None,
     vol=np.asarray(d.dataobj)
     vox2met=vol.affine
     T=np.percentile(vol,95) # threshold to get the 5% brigtest voxels
-    fPoints=IO.readFcsv('markers.fcsv')
-    p=selectPoints(vol,vox2met,T,20,fPoints.values(),100)
+    forbidden_points=IO.readFcsv('markers.fcsv')
+    p=select_points(vol,vox2met,T,20,forbidden_points.values(),100)
     -> this extracts the 100 brightest points, among the 5% brightest points in the
        volume stored in 'volume.nii' such that no two points are within a distance
        20 mm from each other and no point is within 20 mm from points read in file
        'markers.fcsv' 
     '''
-    if thresHigh is None:
-        thresHigh=np.max(vol.ravel())
-    p,v=extractPointsThres(vol,vox2met,thresLow,thresHigh)
+    if thres_high is None:
+        thres_high=np.max(vol.ravel())
+    p,v=extract_points_thres(vol,vox2met,thres_low,thres_high)
 
     # compute volume boundaries in metric space
     #E=vox2met[:3,:]@np.vstack((np.array([0,0,0,1]),np.array(vol.shape)))
     #cm=np.min(E,axis=0)
     #cM=np.max(E,axis=0)
     # remove points too close to boundaries
-    if (nbPoints is None) or (nbPoints > len(v)):
-        nbPoints = len(v)
+    if (nb_points is None) or (nb_points > len(v)):
+        nb_points = len(v)
 
-    if extractType=='Vessels':
+    if extract_type=='Vessels':
         order=np.argsort(v)[::-1] # pick points with decreasing voxel values
     else:
         order=np.arange(len(v))
@@ -77,10 +77,10 @@ def selectPoints(vol,vox2met,thresLow,r,thresHigh=None,fPoints=None,
     removed=np.zeros(len(v),dtype=np.bool)
     tree=skn.KDTree(p)
 
-    if not fPoints is None:
-        if len(fPoints.shape) == 1:
-            fPoints = fPoints[np.newaxis,:]
-        i=tree.query_radius(fPoints,r)[0]
+    if not forbidden_points is None:
+        if len(forbidden_points.shape) == 1:
+            forbidden_points = forbidden_points[np.newaxis,:]
+        i=tree.query_radius(forbidden_points,r)[0]
         removed[i]=True
 
     ret=np.empty((0,3))
@@ -93,11 +93,11 @@ def selectPoints(vol,vox2met,thresLow,r,thresHigh=None,fPoints=None,
             removed[i]=True
             ret=np.vstack((ret,q[np.newaxis,:]))
             n=n+1
-            if n == nbPoints:
+            if n == nb_points:
                 return ret
     return ret
 
-def getBall(r):
+def get_ball(r):
     '''
     return a structure element shaped as a ball of radius r.
     can be used with skimage.morphology operators
@@ -105,7 +105,7 @@ def getBall(r):
     x,y,z=np.ogrid[-r:r+1,-r:r+1,-r:r+1]
     return ((x*x+y*y+z*z)<=r*r).astype(np.uint8)
 
-def removeSkullMask(vol,percent=60):
+def remove_skull_mask(vol,percent=60):
     # compute gradient map and threshold it to its 80th percentile
     edges=sndi.gaussian_gradient_magnitude(vol,sigma=3)
     idx=np.nonzero(edges>=np.percentile(edges,percent))
@@ -137,14 +137,14 @@ def removeSkullMask(vol,percent=60):
         pass
 
     # erode this mask to remove the skull
-    selem=getBall(2)
+    selem=get_ball(2)
     for _ in range(15):
         mask=skim.binary_erosion(mask,selem=selem).astype(np.uint8)
     # return this mask
     return mask
 
 
-def removeSkullMask_old(vol):
+def remove_skull_mask_old(vol):
     '''Skull stripping'''
     # compute gradient map and threshold it to its 80th percentile
     edges=sndi.gaussian_gradient_magnitude(vol,sigma=3)
@@ -177,13 +177,13 @@ def removeSkullMask_old(vol):
         pass
 
     # erode this mask to remove the skull
-    selem=getBall(2)
+    selem=get_ball(2)
     for _ in range(15):
         mask=skim.binary_erosion(mask,selem=selem).astype(np.uint8)
     # return this mask
     return mask
 
-def ConnectedComponents2Spheres(vol, vox2met):
+def connected_components_to_spheres(vol, vox2met):
     '''
     Takes a binary volume and returns a sphere for each connected components
     '''

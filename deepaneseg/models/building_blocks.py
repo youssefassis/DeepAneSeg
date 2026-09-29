@@ -5,7 +5,7 @@ from torch.nn import functional as F
 def number_of_features_per_level(init_channel_number, num_levels):
     return [init_channel_number * 2 ** k for k in range(num_levels)]
 
-def createConv(inp_feat, out_feat, kernel=3, stride=1, padding=1, bias=True):
+def create_conv3d(inp_feat, out_feat, kernel=3, stride=1, padding=1, bias=True):
     return nn.Conv3d(inp_feat, out_feat, kernel_size=kernel, stride=stride, padding=padding, bias=bias)
 
 def create_conv(in_channels, out_channels, kernel_size, order, padding):
@@ -19,7 +19,7 @@ def create_conv(in_channels, out_channels, kernel_size, order, padding):
             modules.append(('LeakyReLU', nn.LeakyReLU(inplace=True)))
         elif char == 'c':
             bias = not ('b' in order)
-            modules.append(('conv', createConv(in_channels, out_channels, kernel_size, padding=padding, bias=bias)))
+            modules.append(('conv', create_conv3d(in_channels, out_channels, kernel_size, padding=padding, bias=bias)))
         elif char == 'b':
             is_before_conv = i < order.index('c')
             if is_before_conv:

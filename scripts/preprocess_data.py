@@ -25,4 +25,4 @@ with open(os.path.join(config['working_dir'], 'ndl_config.json'), 'w') as f:
     json.dump(config, f, indent=2)
 
 pat_list = dio.fetch_patient_dirs(config['base_dir'])
-dio.saveSplit(config['split_file'], *(dgen.splitPatList(pat_list, *(config['data_split']))))
+dio.save_split(config['split_file'], *(dgen.split_pat_list(pat_list, *(config['data_split']))))

@@ -23,7 +23,7 @@ def main():
 
     normalize = config['normalize'] if 'normalize' in config else None
 
-    _, _, test_list = dio.readSplit(config['split_file'])
+    _, _, test_list = dio.read_split(config['split_file'])
 #    test_list = ["/home/yassis/Data/P0078"]
     logger.info(f"{len(test_list)} Patients for testing")
 

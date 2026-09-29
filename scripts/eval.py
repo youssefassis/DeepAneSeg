@@ -29,16 +29,16 @@ pat_names = ['P0153', 'P0154', 'P0155', 'P0156', 'P0157', 'P0158', 'P0159', 'P01
 #print(pat_names)
 
 threshold=1
-TP_proportion=0.3 # proportion d'intersection entre 2 CC pour les considérer comme positives
+tp_proportion=0.3 # proportion d'intersection entre 2 CC pour les considérer comme positives
 vmin=None # pas de filtrage des CC selon leur volume
 
 """
 # computation of perf both aneurysm- and voxel-wise
 print("Voxel-wise metrics")
-TP_tot = 0
-FN_tot = 0
-FP_tot = 0
-Cmat_tot = np.zeros((2,2))
+tp_tot = 0
+fn_tot = 0
+fp_tot = 0
+cmat_tot = np.zeros((2,2))
 for p in pat_names:
     print(f'{p}:',end='')
     fname = os.path.join(test_pdir, p+'.nii.gz')
@@ -51,25 +51,25 @@ for p in pat_names:
     spheres=dio.points_to_spheres(points) #dio.read_points_from_csv(os.path.join(base_dir,p,'F.csv')))
 #    pred[pred<threshold]=0
 #    pred[pred>=threshold]=1
-    TP,FN,FP,Cmat=DLe.confusion_matrix(np.where(pred<threshold,0,1),vox2met,spheres,vmin,TP_proportion)
-#    TP,FN,FP,Cmat=DLe.confusion_matrix(pred, vox2met, spheres, vmin, TP_proportion)
+    TP,FN,FP,Cmat=DLe.confusion_matrix(np.where(pred<threshold,0,1),vox2met,spheres,vmin,tp_proportion)
+#    TP,FN,FP,Cmat=DLe.confusion_matrix(pred, vox2met, spheres, vmin, tp_proportion)
     print(f'{TP}, {FP}, {FN}, {Cmat}')
-    TP_tot += TP
-    FN_tot += FN
-    FP_tot += FP
-    Cmat_tot += Cmat/1e5
+    tp_tot += TP
+    fn_tot += FN
+    fp_tot += FP
+    cmat_tot += Cmat/1e5
 
 
 # affichage des résultats
-print(f'{TP_tot}, {FN_tot}, {FP_tot}, {Cmat_tot}')
+print(f'{tp_tot}, {fn_tot}, {fp_tot}, {cmat_tot}')
 #sensitivity
-print(f'Sensitivity: {TP_tot/(TP_tot+FN_tot)}')
+print(f'Sensitivity: {tp_tot/(tp_tot+fn_tot)}')
 #sens and spec, voxelwise
-print(f'Sensitivity: {Cmat_tot[0,0]/(Cmat_tot[0,0]+Cmat_tot[1,0])}, Specificity: {Cmat_tot[1,1]/(Cmat_tot[1,1]+Cmat_tot[0,1])}')
+print(f'Sensitivity: {cmat_tot[0,0]/(cmat_tot[0,0]+cmat_tot[1,0])}, Specificity: {cmat_tot[1,1]/(cmat_tot[1,1]+cmat_tot[0,1])}')
 
 #kappa (voxel)
-tpv,fpv,fnv,tnv=Cmat_tot.ravel()
-glob=np.sum(Cmat_tot)
+tpv,fpv,fnv,tnv=cmat_tot.ravel()
+glob=np.sum(cmat_tot)
 Pacc=(tpv+tnv)/glob
 Ppos=(tpv+fpv)*(tpv+fnv)/(glob*glob)
 Pneg=(tnv+fnv)*(tnv+fpv)/(glob*glob)
@@ -81,10 +81,10 @@ print(f"Kappa_voxels: {Kappa}")
 # Computation of perf patch-wise (à la Youssef)
 # extract the patches around the points (both positive and negative) and count as positive any patch with positive voxels
 print("Patch-wise metrics")
-TP_tot=0
-TN_tot=0
-FN_tot=0
-FP_tot=0
+tp_tot=0
+tn_tot=0
+fn_tot=0
+fp_tot=0
 size=config['patch_size']
 dim=config['patch_shape']
 for p in pat_names:
@@ -114,7 +114,7 @@ for p in pat_names:
 
     TP,FP,FN,TN=0,0,0,0
     for pt in all_pts:
-        v,t,_=vp.getPatchAndTruth(pred,vox2met,pt,size,dim,annot_pts)
+        v,t,_=vp.get_patch_and_truth(pred,vox2met,pt,size,dim,annot_pts)
         vmax=np.max(v.ravel())
         tmax=np.max(t.ravel())
         if tmax > 0:
@@ -129,17 +129,17 @@ for p in pat_names:
                 TN += 1
     print(f'{TP}, {FP}, {FN}, {TN}')
 
-    TP_tot += TP
-    FP_tot += FP
-    FN_tot += FN
-    TN_tot += TN
+    tp_tot += TP
+    fp_tot += FP
+    fn_tot += FN
+    tn_tot += TN
 
 #sensitivity and specificity
-print(f'Sensitivity: {TP_tot/(TP_tot+FN_tot)}, Specificity: {TN_tot/(TN_tot+FP_tot)}')
+print(f'Sensitivity: {tp_tot/(tp_tot+fn_tot)}, Specificity: {tn_tot/(tn_tot+fp_tot)}')
 
 #kappa (patch
-tpv,fpv,fnv,tnv=TP_tot,FP_tot,FN_tot,TN_tot
-glob=np.sum(Cmat_tot)
+tpv,fpv,fnv,tnv=tp_tot,fp_tot,fn_tot,tn_tot
+glob=np.sum(cmat_tot)
 Pacc=(tpv+tnv)/glob
 Ppos=(tpv+fpv)*(tpv+fnv)/(glob*glob)
 Pneg=(tnv+fnv)*(tnv+fpv)/(glob*glob)
@@ -150,8 +150,8 @@ print(f"Kappa: {Kappa}")
 print("ADAM Metrics")
 # ADAM Challenge computation
 sens_tot = 0
-FP_tot = 0
-TP_tot = 0
+fp_tot = 0
+tp_tot = 0
 nb_ane = 0
 for p in pat_names:
     print(f'{p}:',end='')
@@ -165,7 +165,7 @@ for p in pat_names:
     pretraited_aneurysm[pretraited_aneurysm==2] = 1
 
     aneurysm[aneurysm > 1] = 0
-    spheres = vs.ConnectedComponents2Spheres(aneurysm, vox2met)
+    spheres = vs.connected_components_to_spheres(aneurysm, vox2met)
 #    spheres = dio.points_to_spheres(dio.read_points_from_csv(os.path.join(base_dir,p,'F.csv')))
     pretraited_aneurysm = pretraited_aneurysm if pretraited_aneurysm.sum() > 0 else None
     if pretraited_aneurysm is not None:
@@ -178,14 +178,14 @@ for p in pat_names:
                 pred = pred[:,:,:-1]
         print(pred.shape, pretraited_aneurysm.shape)
 
-    TP, FP, _, _ = DLe.ADAM_evaluation(np.where(pred<threshold,0,1), vox2met, spheres, pretraited_aneurysm, vmin)
+    TP, FP, _, _ = DLe.adam_evaluation(np.where(pred<threshold,0,1), vox2met, spheres, pretraited_aneurysm, vmin)
     sens = TP/spheres.shape[0]
     nb_ane += spheres.shape[0]
     print(f'{TP}, {FP}, {spheres.shape[0]-TP}') # spheres.shape[0]-TP = TN
     sens_tot += sens
-    FP_tot += FP
-    TP_tot += TP
+    fp_tot += FP
+    tp_tot += TP
 nb_pat = len(pat_names)
-R = TP_tot/nb_ane
-P = TP_tot/(TP_tot+FP_tot)
-print(f'sensitivity={sens_tot/nb_pat}, FP count={FP_tot/nb_pat}, TP count={TP_tot/nb_ane}, R={R}, P={P}, F2={(5*P*R)/(4*P+R)}')
+R = tp_tot/nb_ane
+P = tp_tot/(tp_tot+fp_tot)
+print(f'sensitivity={sens_tot/nb_pat}, FP count={fp_tot/nb_pat}, TP count={tp_tot/nb_ane}, R={R}, P={P}, F2={(5*P*R)/(4*P+R)}')
