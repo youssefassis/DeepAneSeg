@@ -1,7 +1,6 @@
 import numpy as np
 import sklearn.neighbors as skn
 import scipy.ndimage as sndi
-import skimage.morphology as skim
 import skimage.measure as skme
 
 
@@ -74,7 +73,7 @@ def select_points(vol,vox2met,thres_low,r,thres_high=None,forbidden_points=None,
     else:
         order=np.arange(len(v))
         np.random.shuffle(order) # pick points randomly
-    removed=np.zeros(len(v),dtype=np.bool)
+    removed=np.zeros(len(v),dtype=bool)
     tree=skn.KDTree(p)
 
     if not forbidden_points is None:
@@ -137,9 +136,9 @@ def remove_skull_mask(vol,percent=60):
         pass
 
     # erode this mask to remove the skull
-    selem=get_ball(2)
+    footprint=get_ball(2)
     for _ in range(15):
-        mask=skim.binary_erosion(mask,selem=selem).astype(np.uint8)
+        mask=sndi.binary_erosion(mask,structure=footprint,border_value=True).astype(np.uint8)
     # return this mask
     return mask
 
@@ -177,9 +176,9 @@ def remove_skull_mask_old(vol):
         pass
 
     # erode this mask to remove the skull
-    selem=get_ball(2)
+    footprint=get_ball(2)
     for _ in range(15):
-        mask=skim.binary_erosion(mask,selem=selem).astype(np.uint8)
+        mask=sndi.binary_erosion(mask,structure=footprint,border_value=True).astype(np.uint8)
     # return this mask
     return mask
 
