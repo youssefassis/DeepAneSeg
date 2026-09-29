@@ -1,0 +1,3 @@
+# Mechanical reformatting; use: git config blame.ignoreRevsFile .git-blame-ignore-revs
+# ruff format + LF line endings
+1da5394c563495720bcfb31987418a241f0cd06b
