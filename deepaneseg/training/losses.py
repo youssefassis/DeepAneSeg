@@ -1,10 +1,16 @@
 import torch
 import torch.nn.functional as F
 from torch import nn as nn
-from torch.autograd import Variable
 from deepaneseg.utils import get_logger
 
 logger = get_logger('Model Configuration')
+
+def flatten(tensor):
+    """Flattens a (N, C, D, H, W) tensor into (C, N * D * H * W), channel first."""
+    channels = tensor.size(1)
+    axis_order = (1, 0) + tuple(range(2, tensor.dim()))
+    return tensor.permute(axis_order).contiguous().view(channels, -1)
+
 class DiceLoss(nn.Module):
     def __init__(self):
         super(DiceLoss, self).__init__()
@@ -58,7 +64,7 @@ class WeightedCrossEntropyLoss(nn.Module):
         flattened = flatten(input)
         nominator = (1. - flattened).sum(-1)
         denominator = flattened.sum(-1)
-        class_weights = Variable(nominator / denominator, requires_grad=False)
+        class_weights = (nominator / denominator).detach()
         return class_weights
 
 class IoULoss(nn.Module):

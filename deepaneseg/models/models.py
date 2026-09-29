@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn import functional as F
 
 from deepaneseg.models.building_blocks import number_of_features_per_level, create_encoders, create_decoders, create_conv3d, DoubleConv
 
@@ -348,13 +349,6 @@ def create_attention_blocks_prop3(f_maps):
         blocks.append(AttentionProp3(i))
     return nn.ModuleList(blocks)
 
-def create_multiscale_convs(f_maps):
-    convs = []
-    for m in list(reversed(f_maps)):
-        convs.append(create_conv3d(m, 1, kernel=1, padding=0))
-    return nn.ModuleList(convs)
-
-
 # class Proposition3(nn.Module):
 #     def __init__(self, in_channels=1, out_channels=1, basic_module=DoubleConv,
 #                     f_maps=64, layer_order='cbr', num_levels=4,
@@ -414,7 +408,7 @@ class Proposition3(nn.Module):
                                         layer_order, upsampling=False)
         self.deep_supervision = deep_supervision
         if self.deep_supervision:
-            self.DetMultiscaleConvs = create_multiscale_convs(f_maps)
+            self.DetMultiscaleConvs = create_multiscale_convs(list(reversed(f_maps)))
         else:
             self.final_conv = create_conv3d(f_maps[0], out_channels, kernel=1, padding=0)
         self.final_activation = nn.Sigmoid()
