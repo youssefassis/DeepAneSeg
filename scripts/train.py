@@ -28,7 +28,7 @@ def main():
 
     loss_criterion = get_loss_criterion(config["loss"])
     eval_criterion = get_metric(config["metrics"])
-    optimizer = create_optimizer(model, config["initial_learning_rate"],  config["weight_decay"])
+    optimizer = create_optimizer(model, learning_rate=config["initial_learning_rate"], weight_decay=config["weight_decay"])
     lr_scheduler = create_lr_scheduler (optimizer, config)
 
     # Data Preparation
