@@ -1,0 +1,11 @@
+defaults:
+  - data: default
+  - _self_
+
+data_dir: ???
+split: [0.7, 0.2, 0.1]   # portions of patients used for training, validation and testing
+overwrite: false         # replace an existing split file
+
+hydra:
+  run:
+    dir: ${data.work_dir}/logs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S}

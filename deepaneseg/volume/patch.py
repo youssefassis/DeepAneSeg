@@ -111,9 +111,7 @@ def get_patch(vol, vox2met, center, size, dim, affine=None, disp=None):
     return b, trans_patch
 
 
-def get_patch_and_truth(
-    vol, vox2met, center, size, dim, aneurysms, affine=None, disp=None, flip=False, noise=False, vessel=None
-):
+def get_patch_and_truth(vol, vox2met, center, size, dim, aneurysms, affine=None, disp=None, vessel=None):
     """
     Extract a patch and compute the corresponding ground truth volume.
     vol,vox2met,center,size,dim,affine,disp: see get_patch
@@ -123,7 +121,6 @@ def get_patch_and_truth(
         - v: the patch volume
         - t: the corresponding ground truth volume
         - v2m: the vox2met transform for the patch
-    flip and noise are currently ignored: mirroring and noise augmentation are disabled.
     """
     v, v2m = get_patch(vol, vox2met, center, size, dim, affine, disp)
     if vessel is not None:

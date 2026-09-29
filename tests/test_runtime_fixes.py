@@ -39,16 +39,18 @@ def test_remove_skull_mask_returns_binary_mask():
     assert set(np.unique(mask)) <= {0, 1}
 
 
-def test_get_model_unet3d_builds_the_paper_unet():
-    assert isinstance(get_model({"model": "unet3d"}), UNet3D)
+UNET_CFG = {"_target_": "deepaneseg.models.models.UNet3D", "f_maps": 8}
+
+
+def test_get_model_builds_the_configured_class():
+    assert isinstance(get_model(UNET_CFG), UNet3D)
 
 
 def test_load_model_restores_saved_weights(tmp_path):
-    model = get_model({"model": "unet3d"})
+    model = get_model(UNET_CFG)
     save_checkpoint({"model_state_dict": model.state_dict()}, False, str(tmp_path))
-    config = {"model": "unet3d", "model_file": str(tmp_path / "last_checkpoint.pytorch")}
 
-    restored = load_model(config)
+    restored = load_model(UNET_CFG, str(tmp_path / "last_checkpoint.pytorch"))
 
     for a, b in zip(model.state_dict().values(), restored.state_dict().values()):
         assert torch.equal(a, b)

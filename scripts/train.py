@@ -1,73 +1,59 @@
 #!/usr/bin/env python3
-"""Train a model as configured in <train_dir>/ndl_config.json; checkpoints are written to the same directory."""
+"""Train a model; configuration in configs/train.yaml.
 
-import argparse
-import json
-import os
+Example: python scripts/train.py data_dir=/data name=exp1 batch_size=8
+Checkpoints, TensorBoard logs and the resolved configuration (.hydra/) are written to <data_dir>/0Work/<name>.
+Running the same command again resumes from the last checkpoint.
+"""
+
+import hydra
 import torch
+from hydra.core.hydra_config import HydraConfig
+from hydra.utils import instantiate
 
-from deepaneseg.data.io import add_points_to_patient_data, read_split, read_patient_data_base
-from deepaneseg.utils import create_optimizer, create_lr_scheduler, get_model
+from deepaneseg.data.io import add_points_to_patient_data, read_patient_data_base, read_split
 from deepaneseg.training.dataset import get_dataloaders
 from deepaneseg.training.losses import get_loss_criterion
 from deepaneseg.training.metrics import get_metric
-
 from deepaneseg.training.trainer import create_trainer
+from deepaneseg.utils import get_model
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("train_dir", help="training directory containing ndl_config.json (see new_train.py)")
-    d = parser.parse_args().train_dir
-    with open(os.path.join(d, "ndl_config.json")) as f:
-        config = json.load(f)
+def load_patients(pat_list, data_cfg, label):
+    if not pat_list:
+        return None
+    patients = read_patient_data_base(pat_list, volume=data_cfg.volume, normalize=data_cfg.normalize, label=label)
+    return add_points_to_patient_data(patients, data_cfg.negative_patch_centers)
 
-    # Model Configuration
+
+@hydra.main(version_base="1.3", config_path="../configs", config_name="train")
+def main(cfg):
+    train_dir = HydraConfig.get().runtime.output_dir
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = get_model(config, default_init="keras", device=device)
 
-    loss_criterion = get_loss_criterion(config["loss"])
-    eval_criterion = get_metric(config["metrics"])
-    optimizer = create_optimizer(
-        model, learning_rate=config["initial_learning_rate"], weight_decay=config["weight_decay"]
-    )
-    lr_scheduler = create_lr_scheduler(optimizer, config)
+    model = get_model(cfg.model, weight_init=cfg.weight_init, device=device)
+    optimizer = instantiate(cfg.optimizer, params=model.parameters(), _convert_="all")
+    lr_scheduler = instantiate(cfg.scheduler, optimizer=optimizer, _convert_="all")
 
-    # Data Preparation
-    normalize = config["normalize"] if "normalize" in config else None
-    vessel = None
+    train_list, valid_list, _ = read_split(cfg.data.split_file)
+    train_db = load_patients(train_list, cfg.data, "training")
+    valid_db = load_patients(valid_list, cfg.data, "validation")
+    loaders, iterations = get_dataloaders(train_db, valid_db, cfg)
 
-    train_list, valid_list, _ = read_split(config["split_file"])
-
-    train_db = add_points_to_patient_data(
-        read_patient_data_base(train_list, normalize=normalize, vessel=vessel, label="training"),
-        config["negative patch centers"],
-    )
-    valid_db = (
-        add_points_to_patient_data(
-            read_patient_data_base(valid_list, normalize=normalize, vessel=vessel, label="validation"),
-            config["negative patch centers"],
-        )
-        if len(valid_list) > 0
-        else None
-    )
-
-    loaders, iterations = get_dataloaders(train_db, valid_db, config, shuffle_train=True, shuffle_val=False)
-
-    # Trainer
     trainer = create_trainer(
-        config,
+        train_dir,
+        max_num_epochs=cfg.epochs,
+        early_stop=cfg.early_stop,
         device=device,
         model=model,
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
-        loss_criterion=loss_criterion,
-        eval_criterion=eval_criterion,
+        loss_criterion=get_loss_criterion(cfg.loss),
+        eval_criterion=get_metric(cfg.metric),
         loaders=loaders,
         max_iterations=iterations,
     )
-
-    trainer.fit(deep_supervision=False)
+    trainer.fit()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,10 @@
+# Predicts the test patients with a trained model; data and model settings are read from the training's config
+train_dir: ???                    # training directory written by train.py
+checkpoint: last_checkpoint.pytorch
+volume: noskull volume            # key, in each patient's config.json, of the volume to predict on
+margin: 8                         # voxels discarded at each patch border when stitching predictions
+batch_size: null                  # null: the training's validation_batch_size
+
+hydra:
+  run:
+    dir: ${train_dir}/prediction

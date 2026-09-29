@@ -21,21 +21,18 @@ def get_number_of_steps(n_samples, batch_size):
 
 
 class Dataset(torch.utils.data.Dataset):
-    "Characterizes a dataset for PyTorch"
+    """
+    Patches (Data, Truth) extracted on the fly with random augmentation.
+    negative/positive: augmentation amplitudes (shift, rotation, distortion) for patches without/with an aneurysm.
+    """
 
-    def __init__(self, patches, size, dim, neg_trans, neg_rot, neg_disp, pos_trans, pos_rot, pos_disp, flip, noise):
+    def __init__(self, patches, size, dim, negative, positive):
         random.shuffle(patches)
         self.patches = patches
         self.size = size
         self.dim = dim
-        self.neg_trans = neg_trans
-        self.neg_rot = neg_rot
-        self.neg_disp = neg_disp
-        self.pos_trans = pos_trans
-        self.pos_rot = pos_rot
-        self.pos_disp = pos_disp
-        self.flip = flip
-        self.noise = noise
+        self.negative = negative
+        self.positive = positive
 
     def __len__(self):
         "Denotes the total number of samples"
@@ -44,14 +41,11 @@ class Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         "Generates one sample of data (Data, Truth)"
         p = self.patches[index]
-        if p["status"] == False:
-            trans, rot, disp = self.neg_trans, self.neg_rot, self.neg_disp
-        else:
-            trans, rot, disp = self.pos_trans, self.pos_rot, self.pos_disp
-        affine, disp = generate_transforms(trans, rot, p["point"], disp)
+        aug = self.positive if p["status"] else self.negative
+        affine, disp = generate_transforms(aug["shift"], aug["rotation"], p["point"], aug["distortion"])
         v, t, _, v2m = vp.get_patch_and_truth(
             p["data"], p["vox2met"], p["point"], self.size, self.dim, p["aneurysms"], affine=affine, disp=disp
-        )  # , flip=self.flip, noise=self.noise)
+        )
         return torch.from_numpy(v[np.newaxis]).float(), torch.from_numpy(t[np.newaxis]).float()
 
 
@@ -84,57 +78,28 @@ def get_patches(pat_db, pos_dup=50, batch_size=8):
     return patches, get_number_of_steps(len(patches), batch_size)
 
 
-def get_dataloaders(train_db, valid_db, config, workers=4, shuffle_train=True, shuffle_val=False):
-    train_generator, train_iterations = None, 0
-    if train_db is not None:
-        train_patches, train_iterations = get_patches(train_db, config["positive duplicates"], config["batch_size"])
-        train_dataset = Dataset(
-            train_patches,
-            config["patch_size"],
-            config["patch_shape"],
-            config["negative sample shift"],
-            config["negative sample rotation"],
-            config["negative sample distortion"],
-            config["positive sample shift"],
-            config["positive sample rotation"],
-            config["positive sample distortion"],
-            config["flip"],
-            config["noise"],
-        )
-        train_generator = DataLoader(
-            train_dataset, batch_size=config["batch_size"], shuffle=shuffle_train, num_workers=workers, pin_memory=True
+def get_dataloaders(train_db, valid_db, cfg, shuffle_train=True, shuffle_val=False):
+    """
+    cfg: training configuration (see configs/train.yaml), providing data.patch_size, data.patch_shape,
+    augmentation, batch_size, validation_batch_size and num_workers.
+    """
+    size, dim = list(cfg["data"]["patch_size"]), list(cfg["data"]["patch_shape"])
+    augmentation = cfg["augmentation"]
+
+    def make_loader(pat_db, batch_size, shuffle, label):
+        if pat_db is None:
+            return None, 0
+        patches, iterations = get_patches(pat_db, augmentation["positive"]["duplicates"], batch_size)
+        dataset = Dataset(patches, size, dim, augmentation["negative"], augmentation["positive"])
+        loader = DataLoader(
+            dataset, batch_size=batch_size, shuffle=shuffle, num_workers=cfg["num_workers"], pin_memory=True
         )
         logger.info(
-            f"Training DataLoader is created: (patches: {len(train_patches)}, batch size: {config['batch_size']}, shuffle: {shuffle_train}, workers: {workers})"
+            f"{label} DataLoader is created: (patches: {len(patches)}, batch size: {batch_size}, "
+            f"shuffle: {shuffle}, workers: {cfg['num_workers']})"
         )
+        return loader, iterations
 
-    valid_generator, valid_iterations = None, 0
-    if valid_db is not None:
-        valid_patches, valid_iterations = get_patches(
-            valid_db, config["positive duplicates"], config["validation_batch_size"]
-        )
-        valid_dataset = Dataset(
-            valid_patches,
-            config["patch_size"],
-            config["patch_shape"],
-            config["negative sample shift"],
-            config["negative sample rotation"],
-            config["negative sample distortion"],
-            config["positive sample shift"],
-            config["positive sample rotation"],
-            config["positive sample distortion"],
-            config["flip"],
-            config["noise"],
-        )
-        valid_generator = DataLoader(
-            valid_dataset,
-            batch_size=config["validation_batch_size"],
-            shuffle=shuffle_val,
-            num_workers=workers,
-            pin_memory=True,
-        )
-        logger.info(
-            f"Validation DataLoader is created: (patches: {len(valid_patches)}, batch size: {config['validation_batch_size']}, shuffle: {shuffle_val}, workers: {workers})"
-        )
-
-    return {"train": train_generator, "valid": valid_generator}, {"train": train_iterations, "valid": valid_iterations}
+    train_loader, train_iterations = make_loader(train_db, cfg["batch_size"], shuffle_train, "Training")
+    valid_loader, valid_iterations = make_loader(valid_db, cfg["validation_batch_size"], shuffle_val, "Validation")
+    return {"train": train_loader, "valid": valid_loader}, {"train": train_iterations, "valid": valid_iterations}

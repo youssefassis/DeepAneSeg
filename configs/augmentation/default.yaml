@@ -1,0 +1,10 @@
+# Random transforms applied to each patch, around its center
+negative:
+  shift: 10        # translation amplitude, in mm
+  rotation: 180    # rotation amplitude, in degrees
+  distortion: null # non-rigid (spline) deformation amplitude, in mm
+positive:
+  shift: 10
+  rotation: 180
+  distortion: 4
+  duplicates: 50   # copies of each aneurysm patch per epoch, each differently deformed
