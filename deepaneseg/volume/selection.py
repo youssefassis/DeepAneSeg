@@ -132,6 +132,15 @@ def remove_skull_mask(vol, percent=60):
     return mask
 
 
+def skull_strip(vol):
+    """Skull-stripped volume, rescaled by its maximum (as written to 'noskull volume' by remove_skull.py)."""
+    vol = np.asarray(vol, dtype=np.float32)
+    vol = remove_skull_mask(vol) * vol
+    if np.max(vol) <= 0:
+        raise ValueError(f"skull stripping left no brain voxel in a volume of shape {vol.shape}")
+    return vol / np.max(vol)
+
+
 def connected_components_to_spheres(vol, vox2met):
     """
     Takes a binary volume and returns a sphere for each connected components
