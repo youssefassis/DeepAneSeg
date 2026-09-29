@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import numpy as np
 import json
-import Volume.Selection as vs
-import Data.IO as dio
+import deepaneseg.volume.selection as vs
+import deepaneseg.data.io as dio
 import pandas as pd
 
 r = 20

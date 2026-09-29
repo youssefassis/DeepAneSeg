@@ -2,9 +2,9 @@ import numpy as np
 import random
 import scipy.spatial.transform.rotation as sstr
 
-import Volume.Patch as vp
-import Volume.Edition as ved
-import Data.IO as dio
+import deepaneseg.volume.patch as vp
+import deepaneseg.volume.edition as ved
+import deepaneseg.data.io as dio
 
 def generateTransforms(trans=None, rot=None, center=None, disp=None):
     '''

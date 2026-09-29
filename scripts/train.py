@@ -4,13 +4,13 @@ import sys, os, json
 import torch
 from torch import optim
 
-from Data.IO import add_points_to_patient_data, readSplit, read_patient_data_base
-from utils import create_optimizer, create_lr_scheduler, get_model
-from Dataset import getDataloaders
-from losses import get_loss_criterion
-from metrics import get_metric
+from deepaneseg.data.io import add_points_to_patient_data, readSplit, read_patient_data_base
+from deepaneseg.utils import create_optimizer, create_lr_scheduler, get_model
+from deepaneseg.training.dataset import getDataloaders
+from deepaneseg.training.losses import get_loss_criterion
+from deepaneseg.training.metrics import get_metric
 
-from trainerUnique import create_trainer
+from deepaneseg.training.trainer import create_trainer
 
 def main():
     d = sys.argv[1]
