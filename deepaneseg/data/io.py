@@ -66,6 +66,19 @@ def points_to_spheres(p):
     return np.hstack((c, r.reshape((-1, 1))))
 
 
+def read_aneurysm_spheres(patient_dir):
+    """
+    returns the aneurysms of a patient as an Nx4 array of spheres (center x, y, z and radius, in mm), read from the
+    'pts aneurysm' file of its config.json; empty (0x4) for a patient without aneurysm
+    """
+    with open(os.path.join(patient_dir, "config.json")) as f:
+        config = json.load(f)
+    points = (
+        read_points_from_csv(os.path.join(patient_dir, config["pts aneurysm"])) if "pts aneurysm" in config else None
+    )
+    return np.empty((0, 4)) if points is None else points_to_spheres(points)
+
+
 def read_patient_data(vol_file, ane_file, normalize=None, vessel_file=None):
     """
     returns a dict with keys 'data','affine','aneurysms'

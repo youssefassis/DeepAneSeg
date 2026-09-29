@@ -139,3 +139,22 @@ def adam_evaluation(pred, vox2met, spheres, pretraited=None, min_size=None):
             false_positives += 1
 
     return true_positives, false_positives, tp_diam, fn_diam
+
+
+def summarize_detections(per_patient):
+    """
+    Aggregates per-patient detection counts (a DataFrame with columns aneurysms, tp, fn, fp) as in the ADAM
+    challenge: sensitivity averaged over the patients with aneurysms, and the mean false positive count per patient.
+    sensitivity_pooled is computed over all aneurysms together.
+    """
+    with_aneurysms = per_patient[per_patient["aneurysms"] > 0]
+    n_aneurysms = int(per_patient["aneurysms"].sum())
+    return {
+        "patients": len(per_patient),
+        "aneurysms": n_aneurysms,
+        "sensitivity": float((with_aneurysms["tp"] / with_aneurysms["aneurysms"]).mean())
+        if len(with_aneurysms)
+        else None,
+        "sensitivity_pooled": float(per_patient["tp"].sum() / n_aneurysms) if n_aneurysms else None,
+        "fp_per_patient": float(per_patient["fp"].mean()),
+    }
