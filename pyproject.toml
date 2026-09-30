@@ -25,6 +25,7 @@ dependencies = [
 ]
 
 [project.scripts]
+deepaneseg-prepare = "deepaneseg.cli.prepare:main"
 deepaneseg-remove-skull = "deepaneseg.cli.remove_skull:main"
 deepaneseg-extract-points = "deepaneseg.cli.extract_points:main"
 deepaneseg-preprocess = "deepaneseg.cli.preprocess:main"
