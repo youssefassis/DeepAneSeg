@@ -8,6 +8,7 @@ from importlib.resources import files
 import pytest
 
 COMMANDS = {
+    "deepaneseg-prepare": "prepare",
     "deepaneseg-remove-skull": "remove_skull",
     "deepaneseg-extract-points": "extract_points",
     "deepaneseg-preprocess": "preprocess",
