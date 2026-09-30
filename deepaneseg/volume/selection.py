@@ -74,7 +74,7 @@ def select_points(
     removed = np.zeros(len(v), dtype=bool)
     tree = skn.KDTree(p)
 
-    if not forbidden_points is None:
+    if forbidden_points is not None and len(forbidden_points):
         if len(forbidden_points.shape) == 1:
             forbidden_points = forbidden_points[np.newaxis, :]
         for i in tree.query_radius(forbidden_points, r):
