@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
-"""Split the patients into training/validation/testing sets; configuration in configs/preprocess.yaml.
+"""Split the patients into training/validation/testing sets; configuration in deepaneseg/configs/preprocess.yaml.
 
-Example: python scripts/preprocess_data.py data_dir=/data split=[0.7,0.2,0.1]
+Example: deepaneseg-preprocess data_dir=/data split=[0.7,0.2,0.1]
 Writes the split to data.split_file (<data_dir>/0Work/split_pats.json by default).
 """
 

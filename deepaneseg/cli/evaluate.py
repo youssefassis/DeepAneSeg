@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
-"""Score a training's predictions on its test patients; configuration in configs/evaluate.yaml.
+"""Score a training's predictions on its test patients; configuration in deepaneseg/configs/evaluate.yaml.
 
-Example: python scripts/evaluate.py train_dir=/data/0Work/exp1
+Example: deepaneseg-evaluate train_dir=/data/0Work/exp1
 A detection (connected component above the threshold) is a true positive when its center lies within an
 aneurysm's radius (ADAM challenge criteria). Writes per_patient.csv and summary.json to <train_dir>/evaluation.
 """

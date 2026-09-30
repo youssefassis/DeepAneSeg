@@ -26,6 +26,24 @@ jobs:
       - name: Test
         run: uv run pytest
 
+  wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: Build and install the wheel outside the repository
+        run: |
+          uv build --wheel -o /tmp/dist
+          uv venv /tmp/venv
+          VIRTUAL_ENV=/tmp/venv uv pip install /tmp/dist/*.whl --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+      - name: Run the commands from another folder
+        working-directory: /tmp
+        run: |
+          mkdir -p data/P0001 && echo '{}' > data/P0001/config.json
+          /tmp/venv/bin/deepaneseg-train --help
+          /tmp/venv/bin/deepaneseg-preprocess data_dir=data
+          test -f data/0Work/split_pats.json
+
   docker:
     runs-on: ubuntu-latest
     steps:
@@ -35,4 +53,4 @@ jobs:
       - name: Smoke test
         run: |
           docker run --rm deepaneseg:cpu python -c "import torch, deepaneseg.utils; print(torch.__version__)"
-          docker run --rm deepaneseg:cpu python scripts/train.py --help
+          docker run --rm deepaneseg:cpu deepaneseg-train --help

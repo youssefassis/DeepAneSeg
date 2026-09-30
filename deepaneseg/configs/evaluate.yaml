@@ -1,6 +1,6 @@
 # Detection metrics (ADAM challenge criteria) of a training's predictions on its test patients
-train_dir: ???                            # training directory written by train.py
-predictions: ${train_dir}/prediction/test # <patient>.nii.gz probability maps written by predict.py
+train_dir: ???                            # training directory written by deepaneseg-train
+predictions: ${train_dir}/prediction/test # <patient>.nii.gz probability maps written by deepaneseg-predict
 threshold: 0.5                            # probability above which a voxel belongs to a detection
 min_size: null                            # detections smaller than this, in voxels, are ignored; null keeps all
 
