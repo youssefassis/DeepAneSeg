@@ -11,7 +11,7 @@ from deepaneseg.models.models import UNet3D
 from deepaneseg.training.trainer import create_trainer
 from deepaneseg.utils import get_model
 
-CONFIG_DIR = str(Path(__file__).parents[1] / "configs")
+CONFIG_DIR = str(Path(__file__).parents[1] / "deepaneseg" / "configs")
 
 
 def compose_config(name, overrides):

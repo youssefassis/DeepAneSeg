@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
-"""Skull-strip every patient volume; configuration in configs/remove_skull.yaml.
+"""Skull-strip every patient volume; configuration in deepaneseg/configs/remove_skull.yaml.
 
-Example: python scripts/remove_skull.py data_dir=/data
+Example: deepaneseg-remove-skull data_dir=/data
 The result is saved next to each volume and registered as 'noskull volume' in the patient's config.json.
 """
 

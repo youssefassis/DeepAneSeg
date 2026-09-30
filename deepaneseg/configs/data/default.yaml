@@ -1,9 +1,9 @@
 # Patient data and patch geometry
 data_dir: ${data_dir}                    # directory containing the patient folders (P????)
 work_dir: ${.data_dir}/0Work             # split file and trainings are written here
-split_file: ${.work_dir}/split_pats.json # written by preprocess_data.py
+split_file: ${.work_dir}/split_pats.json # written by deepaneseg-preprocess
 volume: init volume                      # key, in each patient's config.json, of the volume to train on
 normalize: Linear                        # Linear (rescale to [0, 1]), Normal (zero mean, unit variance) or null
-negative_patch_centers: points.csv       # written by extract_points.py in each patient folder
+negative_patch_centers: points.csv       # written by deepaneseg-extract-points in each patient folder
 patch_shape: [48, 48, 48]                # patch dimension, in voxels
 patch_size: [38, 38, 38]                 # patch size, in mm (resolution = patch_size / patch_shape)

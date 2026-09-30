@@ -14,8 +14,6 @@ from deepaneseg.data.generators import split_pat_list
 from deepaneseg.data.io import fetch_patient_dirs
 from deepaneseg.utils import run_info, seed_everything
 
-SCRIPTS = Path(__file__).parents[1] / "scripts"
-
 
 def test_split_depends_only_on_the_seed():
     patients = [f"P{i:04d}" for i in range(20)]
@@ -89,7 +87,7 @@ def test_same_seed_gives_the_same_trained_weights(tmp_path, num_workers):
             "data.patch_size=[16,16,16]",
             "augmentation.positive.duplicates=2",
         ]
-        result = subprocess.run([sys.executable, str(SCRIPTS / "train.py"), *args], capture_output=True, text=True)
+        result = subprocess.run([sys.executable, "-m", "deepaneseg.cli.train", *args], capture_output=True, text=True)
         assert result.returncode == 0, result.stderr[-2000:]
         return torch.load(tmp_path / "0Work" / name / "last_checkpoint.pytorch")["model_state_dict"]
 
