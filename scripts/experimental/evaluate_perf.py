@@ -9,7 +9,7 @@ import os
 import deepaneseg.inference.evaluation as DLe
 import json
 
-base_dir = "/home/yassis/Data"
+base_dir = "/path/to/Data"
 work_dir = os.path.join(base_dir, "0Work")
 train_dir = os.path.join(work_dir, "ndl_Train002")
 with open(os.path.join(train_dir, "ndl_config.json"), "r") as f:

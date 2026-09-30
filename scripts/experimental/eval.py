@@ -6,16 +6,14 @@ import os
 import deepaneseg.inference.evaluation as DLe
 import json
 
-base_dir = "/srv/storage/tangram@talc-data2.nancy.grid5000.fr/yassis/Data/ADAM/"
-work_dir = os.path.join("/home/yassis/Data", "0Work")
+base_dir = "/path/to/ADAM/"
+work_dir = os.path.join("/path/to/Data", "0Work")
 train_dir = os.path.join(work_dir, "ndl_Train042")
 with open(os.path.join(train_dir, "ndl_config.json"), "r") as f:
     config = json.load(f)
 
-ddir = "/srv/storage/tangram@talc-data2.nancy.grid5000.fr/yassis/Data/ADAM/"
-test_pdir = os.path.join(
-    "/srv/storage/tangram@talc-data2.nancy.grid5000.fr/yassis/ndl_Train042", "predictions", "ADAM"
-)  # ,'test') prediction/prediction_35/test/
+ddir = "/path/to/ADAM/"
+test_pdir = os.path.join("/path/to/ndl_Train042", "predictions", "ADAM")  # ,'test') prediction/prediction_35/test/
 # train_pdir=os.path.join(train_dir,'prediction','Train')
 # valid_pdir=os.path.join(train_dir,'prediction','Valid')
 # utilisation d'un map pour ne garder que le P???? et récupérer le nom du patient à partir du fichier P????.nii.gz
