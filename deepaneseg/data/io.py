@@ -2,7 +2,8 @@ import numpy as np
 import os
 import nibabel as ni
 import pandas as pd
-import json, glob
+import json
+import glob
 
 from deepaneseg.volume.selection import select_points
 from deepaneseg.utils import get_logger
@@ -105,12 +106,12 @@ def read_patient_data(vol_file, ane_file, normalize=None, vessel_file=None):
         - 'Normal': rescaling to 0-mean and unit-variance data
     """
     d, a = read_nii_from_file(vol_file)
-    if not vessel_file is None:
+    if vessel_file is not None:
         seg, _ = read_nii_from_file(vessel_file)
         seg = np.where(seg > 0, 1, 0).astype(np.uint8)  # just in case
     else:
         seg = None
-    if not ane_file is None:
+    if ane_file is not None:
         s = read_points_from_csv(ane_file)
     else:
         s = None
@@ -126,7 +127,7 @@ def read_patient_data_from_config(cfg_name, volume="init volume", normalize=None
     dir = os.path.dirname(cfg_name)
     with open(cfg_name, "r") as f:
         c = json.load(f)
-    if not vessel is None and os.path.isfile(os.path.join(dir, dir.split("/")[-1] + ".nii.gz")):  # c['vessel']))
+    if vessel is not None and os.path.isfile(os.path.join(dir, dir.split("/")[-1] + ".nii.gz")):  # c['vessel']))
         vessel_file = os.path.join(dir, dir.split("/")[-1] + ".nii.gz")  # c['vessel'])
     else:
         vessel_file = None
@@ -214,8 +215,8 @@ def csv2fcsv(csv_pathname):
     head = f"# Markups fiducial file version = 4.10\n# CoordinateSystem = 0\n# columns = {','.join(df)}\n"
     with open(fcsv_file_out, "w") as f:
         f.write(head)
-        for i, l in df.iterrows():
-            f.write(",".join([f"{v}" for v in l]) + "\n")
+        for i, row in df.iterrows():
+            f.write(",".join([f"{v}" for v in row]) + "\n")
 
 
 def fcsv2csv(fcsv_file):
@@ -224,13 +225,13 @@ def fcsv2csv(fcsv_file):
     csv_file_out = filename + ".csv"
 
     with open(fcsv_file, "r") as f:
-        l = f.readlines()
+        lines = f.readlines()
     # coordinate system
-    cs = l[1].strip().split("=")[1].strip()
+    cs = lines[1].strip().split("=")[1].strip()
     # column names
-    cn = list(map(str.strip, l[2].split("=")[1].split(",")))
+    cn = list(map(str.strip, lines[2].split("=")[1].split(",")))
     # data
-    data = [s.strip().split(",") for s in l[3:]]
+    data = [s.strip().split(",") for s in lines[3:]]
     # check coordinate systems and column names
     # RAS: if cs='RAS' or cs='0'
     # LPS: if cs='LPS' or cs='1'

@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 import numpy as np
 import torch
+from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
 
 from hydra.utils import instantiate
 
@@ -183,8 +184,6 @@ def init_model(m):
 
 
 ########### WarmUp scheduler ########
-from torch.optim.lr_scheduler import _LRScheduler
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
 class GradualWarmupScheduler(_LRScheduler):
@@ -242,7 +241,7 @@ class GradualWarmupScheduler(_LRScheduler):
             self.after_scheduler.step(metrics)  # , None)
 
     def step(self, epoch=None, metrics=None):
-        if type(self.after_scheduler) != ReduceLROnPlateau:
+        if not isinstance(self.after_scheduler, ReduceLROnPlateau):
             if self.finished and self.after_scheduler:
                 if epoch is None:
                     self.after_scheduler.step(None)

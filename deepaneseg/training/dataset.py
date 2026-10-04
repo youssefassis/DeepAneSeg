@@ -1,5 +1,6 @@
 import math
-import torch, random
+import torch
+import random
 import numpy as np
 
 from torch.utils.data import DataLoader

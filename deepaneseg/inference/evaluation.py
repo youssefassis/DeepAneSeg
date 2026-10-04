@@ -26,7 +26,7 @@ def confusion_matrix(pred, vox2met, spheres, min_size=None, tp_proportion=0.3):
     """
     # label CC in prediction
     label_pred = skme.label(pred.astype(np.uint8))
-    if not min_size is None:  # also perform relabelling to keep consecutive labels
+    if min_size is not None:  # also perform relabelling to keep consecutive labels
         label_pred = skme.label(skmo.remove_small_objects(label_pred, min_size=min_size))
     ncc_pred = np.max(label_pred.ravel())
 
@@ -86,12 +86,12 @@ def adam_evaluation(pred, vox2met, spheres, pretraited=None, min_size=None):
     """
     # label CC in prediction
     label_pred = skme.label(pred.astype(np.uint8))
-    if not min_size is None:  # also perform relabelling to keep consecutive labels
+    if min_size is not None:  # also perform relabelling to keep consecutive labels
         label_pred = skme.label(skmo.remove_small_objects(label_pred, min_size=min_size))
     ncc_pred = np.max(label_pred.ravel())
 
     # Exculude pretraited aneurysms
-    if not pretraited is None:
+    if pretraited is not None:
         print("pretraited")
         for i in range(1, ncc_pred + 1):
             tmp = label_pred.copy()
