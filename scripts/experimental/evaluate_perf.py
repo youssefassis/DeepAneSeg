@@ -80,7 +80,7 @@ for p in pat_names:
     pred, vox2met = dio.read_nii_from_file(fname)
     pred = np.where(pred < threshold, 0, 1).astype(np.uint8)
 
-    if not vmin is None:
+    if vmin is not None:
         pred = skimo.remove_small_objects(skime.label(pred), min_size=vmin)
         pred = np.where(pred > 0, 1, 0)
 

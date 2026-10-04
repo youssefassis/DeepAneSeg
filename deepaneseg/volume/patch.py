@@ -16,12 +16,12 @@ def inv_trans_point(p, center, size, affine=None, disp=None, order=3):
     """
     x = p.copy()
     # apply affine transform
-    if not affine is None:
+    if affine is not None:
         D = np.linalg.inv(affine)
         x = D[:3, :] @ np.vstack((x, np.ones(x.shape[1])))
 
     # then apply inverse of deformation
-    if not disp is None:
+    if disp is not None:
         center = np.asarray(center)
         size = np.asarray(size)
         # determine abscissa relative to the cube
@@ -52,10 +52,10 @@ def trans_point(p, center, size, affine=None, disp=None):
     p stored in an 3xN array
     """
     x = p.copy()
-    if not disp is None:
+    if disp is not None:
         ores = sopt.minimize(_euclidean_dist, x.ravel(), method="CG", args=(p.ravel(), center, size, affine, disp))
         x = ores.x.reshape((3, -1))
-    elif not affine is None:
+    elif affine is not None:
         x = affine[:3, :] @ np.vstack((x, np.ones(x.shape[1])))
     return x
 

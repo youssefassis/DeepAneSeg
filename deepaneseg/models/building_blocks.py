@@ -20,7 +20,7 @@ def create_conv(in_channels, out_channels, kernel_size, order, padding):
         elif char == "l":
             modules.append(("LeakyReLU", nn.LeakyReLU(inplace=True)))
         elif char == "c":
-            bias = not ("b" in order)
+            bias = "b" not in order
             modules.append(("conv", create_conv3d(in_channels, out_channels, kernel_size, padding=padding, bias=bias)))
         elif char == "b":
             is_before_conv = i < order.index("c")

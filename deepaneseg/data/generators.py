@@ -22,7 +22,7 @@ def generate_transforms(trans=None, rot=None, center=None, disp=None):
         affine = None
     else:
         t = np.zeros(3)
-        if not trans is None:
+        if trans is not None:
             if np.isscalar(trans):
                 t = trans * np.ones(3)
             elif len(trans) == 3:
@@ -31,7 +31,7 @@ def generate_transforms(trans=None, rot=None, center=None, disp=None):
                 raise TypeError("trans argument should be either a scalar or a 3-vector")
         t = t * (2 * (np.random.random_sample(3) - 0.5))
         r = np.zeros(3)
-        if not rot is None:
+        if rot is not None:
             if np.isscalar(rot):
                 r = rot * np.ones(3)
             elif len(rot) == 3:
@@ -44,7 +44,7 @@ def generate_transforms(trans=None, rot=None, center=None, disp=None):
         affine[:3, :3] = Rotation.from_euler("zyx", r, degrees=True).as_matrix()
         affine[:3, 3] = t if center is None else t + center.ravel() @ (np.eye(3) - affine[:3, :3]).T
 
-    if not disp is None:
+    if disp is not None:
         if np.isscalar(disp):
             amp = disp * np.ones(3)
         elif len(disp) == 3:

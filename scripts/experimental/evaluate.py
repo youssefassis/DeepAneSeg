@@ -19,9 +19,8 @@ def main():
     try:
         with open(cfg, "r") as f:
             config = json.load(f)
-    except:
-        print(f"No such config file {cfg}")
-        exit()
+    except OSError:
+        sys.exit(f"No such config file {cfg}")
 
     logger = get_logger("Evaluation")
 
