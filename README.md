@@ -65,21 +65,6 @@ is activated.
 Without uv, `pip install git+https://github.com/youssefassis/DeepAneSeg` installs the package and its commands
 (with PyTorch's default build from PyPI).
 
-### Docker
-The image installs the same locked versions, with the GPU (default) or CPU PyTorch build:
-```
-docker build -t deepaneseg --build-arg GIT_COMMIT=$(git rev-parse HEAD) .
-docker build -t deepaneseg:cpu --build-arg TORCH=cpu .
-```
-Mount the data folder and run any command; outputs are written to the mounted folder:
-```
-docker run --rm --gpus all --shm-size=8g -v /path/to/Data:/data deepaneseg \
-    deepaneseg-train data_dir=/data name=exp1
-```
-GPU runs need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/) on
-the host. `--shm-size` gives the data-loading workers enough shared memory, and `--user $(id -u):$(id -g)` creates
-the output files with your own user.
-
 ## Data
 ### Layout
 Each patient is a folder named `P` followed by four digits:

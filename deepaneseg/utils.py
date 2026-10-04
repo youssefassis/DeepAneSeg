@@ -92,14 +92,14 @@ def seed_everything(seed):
 
 
 def _git_commit():
-    """Commit of the checkout the code runs from, or DEEPANESEG_GIT_COMMIT (set in the Docker image)."""
+    """Commit of the checkout the code runs from ("unknown" outside a git checkout)."""
     repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     try:
         commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True, check=True)
         status = subprocess.run(["git", "status", "--porcelain"], cwd=repo, capture_output=True, text=True, check=True)
         return commit.stdout.strip(), bool(status.stdout.strip())
     except (OSError, subprocess.CalledProcessError):
-        return os.environ.get("DEEPANESEG_GIT_COMMIT", "unknown"), None
+        return "unknown", None
 
 
 def run_info(**extra):

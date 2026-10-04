@@ -43,14 +43,3 @@ jobs:
           /tmp/venv/bin/deepaneseg-train --help
           /tmp/venv/bin/deepaneseg-preprocess data_dir=data
           test -f data/0Work/split_pats.json
-
-  docker:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build (CPU PyTorch)
-        run: docker build -t deepaneseg:cpu --build-arg TORCH=cpu .
-      - name: Smoke test
-        run: |
-          docker run --rm deepaneseg:cpu python -c "import torch, deepaneseg.utils; print(torch.__version__)"
-          docker run --rm deepaneseg:cpu deepaneseg-train --help
